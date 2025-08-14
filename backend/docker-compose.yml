@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8085:3000"
+    volumes:
+      - ./backend:/usr/src/app/backend
+      - ./app.js:/usr/src/app/app.js
+      - ./Servidor.js:/usr/src/app/Servidor.js
+      - ./.env:/usr/src/app/.env
+      - /usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
+    restart: unless-stopped
