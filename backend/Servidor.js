@@ -1,5 +1,5 @@
     const express = require("express");
-    const UserRoteador = require("./backend/router/userRouter");
+    const UserRoteador = require("./backend/router/UsuarioRouter");
     const iaRoteador = require('./backend/router/chatRouter');
     const { connectToDatabase } = require('./backend/model/db');
     require('dotenv').config();  
