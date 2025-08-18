@@ -2,10 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>3D Earth</title>
-  <style>body { margin: 0; overflow: hidden; }</style>
+  <title>Space Debris</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+    }
+    #controls button {
+      margin: 5px;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 4px;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #controls button:hover {
+      background: #45a049;
+    }
+    #controls button.active {
+      background: #ff6b6b;
+    }
+    #info {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      backdrop-filter: blur(10px);
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 18px;
+      z-index: 200;
+    }
+  </style>
 </head>
 <body>
-  <script type="module" src="./main.js"></script>
+  <div id="loading">Loading space debris data...</div>
+  <div id="controls">
+    <div>
+      <button id="colorByCountry" class="active">Color by Country</button>
+      <button id="colorByCompany">Color by Company</button>
+    </div>
+    <div style="margin-top: 10px;">
+      <label>Quality: </label>
+      <select id="qualitySelect">
+        <option value="LOW_QUALITY">Low (Best Performance)</option>
+        <option value="MEDIUM_QUALITY" selected>Medium (Balanced)</option>
+        <option value="HIGH_QUALITY">High (Best Quality)</option>
+      </select>
+    </div>
+    <div style="margin-top: 10px;">
+      <label>Count: </label>
+      <select id="countSelect">
+        <option value="5000">5,000 objects</option>
+        <option value="10000" selected>10,000 objects</option>
+        <option value="15000">15,000 objects</option>
+        <option value="20000">20,000 objects</option>
+      </select>
+    </div>
+    <div style="margin-top: 10px; font-size: 12px;">
+      <div>Size represents object dimensions</div>
+      <div>Mouse: Rotate | Wheel: Zoom</div>
+    </div>
+  </div>
+  <div id="info">
+    <div>Debris Count: <span id="debrisCount">0</span></div>
+    <div>FPS: <span id="fps">--</span></div>
+  </div>
+  <script type="module" src="./main.js">
+  </script>
 </body>
 </html>

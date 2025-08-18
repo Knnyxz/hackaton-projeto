@@ -1,7 +1,7 @@
     const express = require("express");
-    const UserRoteador = require("./backend/router/UsuarioRouter");
-    const iaRoteador = require('./backend/router/chatRouter');
-    const { connectToDatabase } = require('./backend/model/db');
+    const UserRoteador = require("./router/UsuarioRouter.js");
+    const spaceDebrisRouter = require('./router/SpaceDebrisRouter');
+    const { connectToDatabase } = require('./model/Banco');
     require('dotenv').config();  
     const cors = require('cors');
 
@@ -14,15 +14,15 @@
             this._app.use(express.json({ limit: '100mb' })); 
             this._app.use(express.urlencoded({ extended: true, limit: '100mb' })); 
             
-            this._iaRoteador = new iaRoteador();
+            this._spaceDebrisRouter = new spaceDebrisRouter();
             this._userRoteador = new UserRoteador();
             
             this.configurarRotas();
         }
 
         configurarRotas = () => {
-            this._app.use("/ia", this._iaRoteador.criarRotas());
-            this._app.use("/user", this._userRoteador.criarRotas());
+            this._app.use("/space_debris", this._spaceDebrisRouter.createRoutes());
+            this._app.use("/user", this._userRoteador.createRoutes());
         }
 
         iniciar = async () => {

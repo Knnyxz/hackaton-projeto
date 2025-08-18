@@ -6,11 +6,12 @@
     "nodemon": "^2.0.15"
   },
   "dependencies": {
+    "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
     "csv-writer": "^1.6.0",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "fast-csv": "^5.0.2",
     "jsonwebtoken": "^9.0.2",
