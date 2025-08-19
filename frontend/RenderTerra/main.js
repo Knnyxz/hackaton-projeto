@@ -15,15 +15,13 @@ const PERFORMANCE_SETTINGS = {
   MEDIUM_QUALITY: { segments: 6, detail: 6, maxDebris: 25000 },
   HIGH_QUALITY: { segments: 8, detail: 8, maxDebris: 50000 },
   CURRENT_QUALITY: 'MEDIUM_QUALITY',
-  CURRENT_COUNT: 10000, // Reduzido drasticamente
+  CURRENT_COUNT: 10000,
   USE_INSTANCING: true,
   USE_LOD: true,
   FRUSTUM_CULLING: true
 };
 
 const scene = new THREE.Scene();
-// Background será definido por shader customizado mais adiante
-// scene.background = new THREE.Color(0x000011);
 
 // Shaders customizados para fundo espacial realista
 const spaceVertexShader = `
@@ -43,7 +41,6 @@ const spaceFragmentShader = `
   varying vec3 vWorldPosition;
   varying vec2 vUv;
   
-  // Função de ruído para nebulosas
   float noise(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
   }
@@ -64,11 +61,9 @@ const spaceFragmentShader = `
   void main() {
     vec3 direction = normalize(vWorldPosition - cameraPosition);
     
-    // Gradiente base do espaço profundo
     float depth = length(vWorldPosition - cameraPosition) / 1000.0;
     vec3 deepSpace = mix(vec3(0.02, 0.02, 0.08), vec3(0.0, 0.0, 0.02), depth);
     
-    // Nebulosas coloridas
     vec3 nebulaPos = direction * 10.0 + vec3(time * 0.01);
     float nebula1 = fbm(nebulaPos * 0.5);
     float nebula2 = fbm(nebulaPos * 0.3 + vec3(100.0));
@@ -76,11 +71,9 @@ const spaceFragmentShader = `
     vec3 nebulaColor1 = vec3(0.8, 0.2, 0.6) * nebula1 * 0.3;
     vec3 nebulaColor2 = vec3(0.2, 0.6, 0.9) * nebula2 * 0.2;
     
-    // Estrelas distantes
     float stars = noise(direction * 200.0);
     stars = pow(stars, 20.0) * 2.0;
     
-    // Combinação final
     vec3 finalColor = deepSpace + nebulaColor1 + nebulaColor2 + vec3(stars);
     
     gl_FragColor = vec4(finalColor, 1.0);
@@ -89,19 +82,14 @@ const spaceFragmentShader = `
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.01, 1000);
 const renderer = new THREE.WebGLRenderer({ 
-  antialias: window.devicePixelRatio <= 1, // Antialias apenas em telas de baixa resolução
+  antialias: window.devicePixelRatio <= 1,
   powerPreference: "high-performance",
-  logarithmicDepthBuffer: true // Melhor precisão de profundidade
+  logarithmicDepthBuffer: true
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-// Sombras desabilitadas para melhor performance
-// renderer.shadowMap.enabled = true;
-// renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-// Otimizações adicionais do renderer
-renderer.sortObjects = false; // Desabilitar ordenação automática
-renderer.info.autoReset = false; // Controle manual das estatísticas
+renderer.sortObjects = false;
+renderer.info.autoReset = false;
 
 document.body.appendChild(renderer.domElement);
 
@@ -115,7 +103,7 @@ camera.position.set(5, 3, 5);
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// Position the sun far away (define before lighting)
+// Position the sun far away
 const sunDistance = 800;
 const sunPosition = new THREE.Vector3(sunDistance, sunDistance * 0.3, -sunDistance * 0.5);
 
@@ -124,13 +112,8 @@ const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-// Posicionar a luz na direção do Sol para iluminação realista
 directionalLight.position.copy(sunPosition);
-directionalLight.target.position.set(0, 0, 0); // Apontar para a Terra
-// Sombras desabilitadas para melhor performance
-// directionalLight.castShadow = true;
-// directionalLight.shadow.mapSize.width = 2048;
-// directionalLight.shadow.mapSize.height = 2048;
+directionalLight.target.position.set(0, 0, 0);
 scene.add(directionalLight);
 scene.add(directionalLight.target);
 
@@ -138,7 +121,6 @@ scene.add(directionalLight.target);
 const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS_THREEJS, 64, 64);
 const textureLoader = new THREE.TextureLoader();
 
-// Load earth texture (using a publicly available earth texture)
 const earthTexture = textureLoader.load('./resources/textures/earth_2.jpg');
 const earthMaterial = new THREE.MeshPhongMaterial({ 
   map: earthTexture,
@@ -146,13 +128,13 @@ const earthMaterial = new THREE.MeshPhongMaterial({
   specular: 0x222222
 });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-earth.rotation.z = -EARTH_AXIAL_TILT; // Apply axial tilt
-earth.rotation.y = Math.PI; // 180 degrees for texture alignment
+earth.rotation.z = -EARTH_AXIAL_TILT;
+earth.rotation.y = Math.PI;
 earth.castShadow = false;
 earth.receiveShadow = false;
 scene.add(earth);
 
-// Enhanced atmosphere com shader realista
+// Enhanced atmosphere
 const atmosphereVertexShader = `
   varying vec3 vNormal;
   varying vec3 vWorldPosition;
@@ -175,15 +157,12 @@ const atmosphereFragmentShader = `
     vec3 normal = normalize(vNormal);
     vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
     
-    // Efeito de dispersão atmosférica
     float fresnel = 1.0 - dot(normal, viewDirection);
     fresnel = pow(fresnel, 2.0);
     
-    // Iluminação do Sol
     float sunDot = dot(normal, normalize(sunDirection));
     float sunIntensity = max(0.0, sunDot);
     
-    // Cores da atmosfera baseadas na iluminação
     vec3 dayColor = vec3(0.5, 0.8, 1.0);
     vec3 sunsetColor = vec3(1.0, 0.6, 0.3);
     vec3 nightColor = vec3(0.1, 0.2, 0.4);
@@ -229,7 +208,7 @@ const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
 const stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
 
-// Fundo espacial realista com shaders customizados
+// Space sky background
 const spaceSkyGeometry = new THREE.SphereGeometry(2000, 32, 32);
 const spaceSkyMaterial = new THREE.ShaderMaterial({
   vertexShader: spaceVertexShader,
@@ -244,14 +223,13 @@ const spaceSkyMaterial = new THREE.ShaderMaterial({
 const spaceSky = new THREE.Mesh(spaceSkyGeometry, spaceSkyMaterial);
 scene.add(spaceSky);
 
-// Create the Sun
+// Sun creation functions
 function createSunTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
   
-  // Create radial gradient for the sun
   const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
   gradient.addColorStop(0, '#ffffff');
   gradient.addColorStop(0.1, '#ffffaa');
@@ -268,7 +246,7 @@ function createSunTexture() {
 
 const sunTexture = createSunTexture();
 
-// Shader customizado para o Sol com efeito de corona
+// Sun shader
 const sunVertexShader = `
   varying vec3 vNormal;
   varying vec3 vPosition;
@@ -285,7 +263,6 @@ const sunFragmentShader = `
   varying vec3 vNormal;
   varying vec3 vPosition;
   
-  // Função de ruído para efeitos de plasma
   float noise(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
   }
@@ -293,12 +270,10 @@ const sunFragmentShader = `
   void main() {
     vec3 normal = normalize(vNormal);
     
-    // Efeito de plasma na superfície do Sol
     vec3 plasmaPos = vPosition * 0.1 + vec3(time * 0.5);
     float plasma1 = noise(plasmaPos);
     float plasma2 = noise(plasmaPos * 2.0 + vec3(time * 0.3));
     
-    // Cores do Sol baseadas no plasma
     vec3 coreColor = vec3(1.0, 1.0, 0.9);
     vec3 surfaceColor = vec3(1.0, 0.7, 0.2);
     vec3 flareColor = vec3(1.0, 0.3, 0.1);
@@ -307,7 +282,6 @@ const sunFragmentShader = `
     vec3 sunColor = mix(surfaceColor, coreColor, intensity);
     sunColor = mix(sunColor, flareColor, pow(intensity, 3.0));
     
-    // Efeito de brilho baseado na normal
     float fresnel = 1.0 - dot(normal, vec3(0.0, 0.0, 1.0));
     sunColor += vec3(0.5, 0.3, 0.1) * pow(fresnel, 2.0);
     
@@ -315,7 +289,7 @@ const sunFragmentShader = `
   }
 `;
 
-// Create sun geometry and material
+// Create sun
 const sunGeometry = new THREE.SphereGeometry(50, 32, 32);
 const sunMaterial = new THREE.ShaderMaterial({
   vertexShader: sunVertexShader,
@@ -329,7 +303,7 @@ const sun = new THREE.Mesh(sunGeometry, sunMaterial);
 sun.position.copy(sunPosition);
 scene.add(sun);
 
-// Create sun glow effect
+// Sun glow effects
 const glowGeometry = new THREE.SphereGeometry(50, 32, 32);
 const glowMaterial = new THREE.MeshBasicMaterial({
   color: 0xffaa00,
@@ -342,7 +316,6 @@ const sunGlow = new THREE.Mesh(glowGeometry, glowMaterial);
 sunGlow.position.copy(sunPosition);
 scene.add(sunGlow);
 
-// Create corona effect
 const coronaGeometry = new THREE.SphereGeometry(55, 27, 27);
 const coronaMaterial = new THREE.MeshBasicMaterial({
   color: 0xffffaa,
@@ -399,7 +372,7 @@ function geodeticToThreeJS(latitude, longitude, altitudeKm) {
   };
 }
 
-// Geometrias pré-criadas para reutilização (otimização de memória)
+// Geometries for debris shapes
 const DEBRIS_GEOMETRIES = {
   box: null,
   cylinder: null,
@@ -407,7 +380,6 @@ const DEBRIS_GEOMETRIES = {
   sphere: null
 };
 
-// Inicializar geometrias base
 function initializeDebrisGeometries(quality) {
   const baseSize = 0.004;
   
@@ -417,7 +389,6 @@ function initializeDebrisGeometries(quality) {
   DEBRIS_GEOMETRIES.sphere = new THREE.SphereGeometry(baseSize, quality.segments, quality.detail);
 }
 
-// Função otimizada para selecionar geometria
 function getDebrisGeometry() {
   const shapeType = Math.random();
   
@@ -439,7 +410,6 @@ function createDebrisTexture() {
   canvas.height = 64;
   const ctx = canvas.getContext('2d');
   
-  // Base metallic color
   const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
   gradient.addColorStop(0, '#888888');
   gradient.addColorStop(0.5, '#555555');
@@ -447,7 +417,6 @@ function createDebrisTexture() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 64, 64);
   
-  // Add some random scratches and wear
   ctx.strokeStyle = '#999999';
   ctx.lineWidth = 1;
   for (let i = 0; i < 8; i++) {
@@ -457,7 +426,6 @@ function createDebrisTexture() {
     ctx.stroke();
   }
   
-  // Add some rust spots
   ctx.fillStyle = '#663311';
   for (let i = 0; i < 5; i++) {
     ctx.beginPath();
@@ -473,13 +441,22 @@ function createDebrisTexture() {
 
 const debrisTexture = createDebrisTexture();
 
+// FILTERING SYSTEM
+let filteringSystem = {
+  currentMode: 'country', // 'country' or 'company'
+  selectedFilters: new Set(),
+  allFilters: new Map(), // Map of filter name to count
+  searchTerm: '',
+  isFiltering: false
+};
+
 let isModalOpen = false;
 let debrisData = [];
 let debrisObjects = [];
-let instancedMeshes = {}; // Para armazenar os InstancedMesh
+let instancedMeshes = {};
 let currentColorMode = 'country';
 let isLoading = false;
-let debrisInstanceData = []; // Dados dos debris para instancing
+let debrisInstanceData = [];
 
 // Camera and focus management
 let focusedDebris = null;
@@ -679,7 +656,198 @@ function hideSideModal() {
   isModalOpen = false;
 }
 
-// Mouse interaction otimizada para instancing
+// FILTERING SYSTEM IMPLEMENTATION
+
+function updateFilterUI() {
+  const filterTitle = document.getElementById('filterTitle');
+  const searchFilter = document.getElementById('searchFilter');
+  const filterList = document.getElementById('filterList');
+  const selectedCountEl = document.getElementById('selectedCount');
+  const visibleObjectsEl = document.getElementById('visibleObjects');
+  
+  if (!filterTitle || !searchFilter || !filterList) return;
+  
+  // Update title and placeholder
+  const mode = filteringSystem.currentMode;
+  filterTitle.textContent = `Filter by ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
+  searchFilter.placeholder = `Search ${mode}s...`;
+  
+  // Get filtered list based on search term
+  const filteredItems = Array.from(filteringSystem.allFilters.entries())
+    .filter(([name]) => 
+      name.toLowerCase().includes(filteringSystem.searchTerm.toLowerCase())
+    )
+    .sort((a, b) => b[1] - a[1]); // Sort by count, descending
+  
+  // Clear and rebuild filter list
+  filterList.innerHTML = '';
+  
+  filteredItems.forEach(([name, count]) => {
+    const filterItem = document.createElement('div');
+    filterItem.className = 'filter-item';
+    
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = `filter-${name}`;
+    checkbox.checked = filteringSystem.selectedFilters.has(name);
+    checkbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        filteringSystem.selectedFilters.add(name);
+      } else {
+        filteringSystem.selectedFilters.delete(name);
+      }
+      applyFilters();
+      updateFilterStats();
+    });
+    
+    const label = document.createElement('label');
+    label.htmlFor = `filter-${name}`;
+    label.innerHTML = `
+      <span class="color-indicator" style="background-color: #${getColorForCategory(name, mode).toString(16).padStart(6, '0')};"></span>
+      <span>${name}</span>
+      <span class="count">${count}</span>
+    `;
+    
+    filterItem.appendChild(checkbox);
+    filterItem.appendChild(label);
+    filterList.appendChild(filterItem);
+  });
+  
+  updateFilterStats();
+}
+
+function updateFilterStats() {
+  const selectedCountEl = document.getElementById('selectedCount');
+  const visibleObjectsEl = document.getElementById('visibleObjects');
+  
+  if (selectedCountEl) {
+    selectedCountEl.textContent = filteringSystem.selectedFilters.size;
+  }
+  
+}
+
+function getVisibleDebrisCount() {
+  if (filteringSystem.selectedFilters.size === 0) {
+    return debrisInstanceData.length;
+  }
+  
+  return debrisInstanceData.filter(debris => {
+    const category = filteringSystem.currentMode === 'country' 
+      ? debris.data.country 
+      : debris.data.company;
+    return filteringSystem.selectedFilters.has(category || 'Unknown');
+  }).length;
+}
+
+function buildFilterData() {
+  filteringSystem.allFilters.clear();
+  
+  debrisInstanceData.forEach(debris => {
+    const category = filteringSystem.currentMode === 'country' 
+      ? debris.data.country 
+      : debris.data.company;
+    const key = category || 'Unknown';
+    
+    if (!filteringSystem.allFilters.has(key)) {
+      filteringSystem.allFilters.set(key, 0);
+    }
+    filteringSystem.allFilters.set(key, filteringSystem.allFilters.get(key) + 1);
+  });
+  
+  // Initialize with all filters selected if none are selected
+  if (filteringSystem.selectedFilters.size === 0) {
+    filteringSystem.allFilters.forEach((count, name) => {
+      filteringSystem.selectedFilters.add(name);
+    });
+  }
+}
+
+function applyFilters() {
+  if (filteringSystem.selectedFilters.size === 0) {
+    // Show all debris when no filters selected
+    Object.values(instancedMeshes).forEach(mesh => {
+      mesh.visible = true;
+    });
+    return;
+  }
+  
+  filteringSystem.isFiltering = true;
+  const tempObject = new THREE.Object3D();
+  const hiddenScale = new THREE.Vector3(0, 0, 0);
+  const normalScale = new THREE.Vector3(1, 1, 1);
+  const matrix = new THREE.Matrix4();
+  
+  // Apply filters to each geometry type
+  Object.keys(instancedMeshes).forEach(geometryType => {
+    const mesh = instancedMeshes[geometryType];
+    if (!mesh) return;
+    
+    let instanceIndex = 0;
+    
+    debrisInstanceData.forEach(debris => {
+      if (debris.geometryType === geometryType) {
+        const category = filteringSystem.currentMode === 'country' 
+          ? debris.data.country 
+          : debris.data.company;
+        const isVisible = filteringSystem.selectedFilters.has(category || 'Unknown');
+        
+        // Get current matrix
+        mesh.getMatrixAt(instanceIndex, matrix);
+        tempObject.position.setFromMatrixPosition(matrix);
+        tempObject.rotation.setFromRotationMatrix(matrix);
+        
+        // Set scale based on visibility
+        if (isVisible) {
+          tempObject.scale.set(debris.size, debris.size, debris.size);
+        } else {
+          tempObject.scale.copy(hiddenScale);
+        }
+        
+        tempObject.updateMatrix();
+        mesh.setMatrixAt(instanceIndex, tempObject.matrix);
+        
+        instanceIndex++;
+      }
+    });
+    
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+}
+
+function resetFilters() {
+  filteringSystem.selectedFilters.clear();
+  filteringSystem.allFilters.forEach((count, name) => {
+    filteringSystem.selectedFilters.add(name);
+  });
+  applyFilters();
+  updateFilterUI();
+}
+
+function selectAllFilters() {
+  const filteredItems = Array.from(filteringSystem.allFilters.keys())
+    .filter(name => name.toLowerCase().includes(filteringSystem.searchTerm.toLowerCase()));
+  
+  filteredItems.forEach(name => {
+    filteringSystem.selectedFilters.add(name);
+  });
+  
+  applyFilters();
+  updateFilterUI();
+}
+
+function selectNoneFilters() {
+  const filteredItems = Array.from(filteringSystem.allFilters.keys())
+    .filter(name => name.toLowerCase().includes(filteringSystem.searchTerm.toLowerCase()));
+  
+  filteredItems.forEach(name => {
+    filteringSystem.selectedFilters.delete(name);
+  });
+  
+  applyFilters();
+  updateFilterUI();
+}
+
+// Mouse interaction adapted for filtering
 function onMouseClick(event) {
   if (isLoading || isModalOpen) return;
   
@@ -688,7 +856,6 @@ function onMouseClick(event) {
   
   raycaster.setFromCamera(mouse, camera);
   
-  // Verificar intersecções com InstancedMesh
   const instancedMeshArray = Object.values(instancedMeshes);
   const intersects = raycaster.intersectObjects(instancedMeshArray);
   
@@ -697,11 +864,9 @@ function onMouseClick(event) {
     const instanceId = intersect.instanceId;
     
     if (instanceId !== undefined) {
-      // Encontrar o debris correspondente
       const intersectedMesh = intersect.object;
       let geometryType = null;
       
-      // Identificar o tipo de geometria
       Object.entries(instancedMeshes).forEach(([type, mesh]) => {
         if (mesh === intersectedMesh) {
           geometryType = type;
@@ -709,14 +874,20 @@ function onMouseClick(event) {
       });
       
       if (geometryType) {
-        // Encontrar o debris correto baseado no instanceId e tipo
         let currentIndex = 0;
         for (const debris of debrisInstanceData) {
           if (debris.geometryType === geometryType) {
             if (currentIndex === instanceId) {
-              // Store debris info and zoom to it
-              focusOnDebris(debris, currentIndex, geometryType);
-              showSideModal(debris.data);
+              // Check if debris is visible (not filtered out)
+              const category = filteringSystem.currentMode === 'country' 
+                ? debris.data.country 
+                : debris.data.company;
+              const isVisible = filteringSystem.selectedFilters.has(category || 'Unknown');
+              
+              if (isVisible) {
+                focusOnDebris(debris, currentIndex, geometryType);
+                showSideModal(debris.data);
+              }
               return;
             }
             currentIndex++;
@@ -728,7 +899,6 @@ function onMouseClick(event) {
 }
 
 function focusOnDebris(debris, instanceId, geometryType) {
-  // Store original camera state for restoration
   if (!isZoomedIn) {
     originalCameraPosition = camera.position.clone();
     originalControlsTarget = controls.target.clone();
@@ -737,34 +907,49 @@ function focusOnDebris(debris, instanceId, geometryType) {
   focusedDebris = { debris, instanceId, geometryType };
   isZoomedIn = true;
   
-  // Hide all other debris
+  // Hide other debris (from old code)
   Object.entries(instancedMeshes).forEach(([type, mesh]) => {
     if (type !== geometryType) {
       mesh.visible = false;
     } else {
-      // Hide all instances except the focused one
       hideAllInstancesExcept(mesh, instanceId);
     }
   });
   
-  // Calculate current position from the instanced mesh
+  // Get the actual world position of the debris (from new code)
   const matrix = new THREE.Matrix4();
   const instancedMesh = instancedMeshes[geometryType];
   instancedMesh.getMatrixAt(instanceId, matrix);
   
-  // Extract position from the matrix
   const debrisPos = new THREE.Vector3();
-  matrix.decompose(debrisPos, new THREE.Quaternion(), new THREE.Vector3());
+  const rotation = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  matrix.decompose(debrisPos, rotation, scale);
   
-  // Calculate camera position for close-up view
-  const distance = 0.05; // Very close distance
-  const offset = new THREE.Vector3(distance, distance * 0.5, distance);
-  const newCameraPos = debrisPos.clone().add(offset);
+  // Apply Earth's axial tilt transformation
+  const earthTiltMatrix = new THREE.Matrix4().makeRotationZ(EARTH_AXIAL_TILT);
+  debrisPos.applyMatrix4(earthTiltMatrix);
   
-  // Smooth camera transition
+  // Calculate appropriate zoom distance based on debris size
+  const debrisSize = Math.max(debris.size, 0.001);
+  const distance = Math.max(debrisSize * 0.03, 0.1);
+  
+  // Calculate camera position relative to debris
+  const cameraDirection = camera.position.clone().sub(controls.target).normalize();
+  const newCameraPos = debrisPos.clone().add(cameraDirection.multiplyScalar(distance));
+  
+  // Ensure camera doesn't go inside Earth
+  const earthCenter = new THREE.Vector3(0, 0, 0);
+  const distanceFromEarth = newCameraPos.distanceTo(earthCenter);
+  if (distanceFromEarth < EARTH_RADIUS_THREEJS * 1.1) {
+    const safeDirection = newCameraPos.clone().normalize();
+    newCameraPos.copy(safeDirection.multiplyScalar(EARTH_RADIUS_THREEJS * 1.2));
+  }
+  
+  // Animate camera movement
   const startPos = camera.position.clone();
   const startTarget = controls.target.clone();
-  const duration = 1500; // 1.5 seconds
+  const duration = 1500;
   const startTime = performance.now();
   
   function animateCamera(currentTime) {
@@ -772,10 +957,7 @@ function focusOnDebris(debris, instanceId, geometryType) {
     const progress = Math.min(elapsed / duration, 1);
     const easeProgress = easeInOutCubic(progress);
     
-    // Interpolate camera position
     camera.position.lerpVectors(startPos, newCameraPos, easeProgress);
-    
-    // Interpolate controls target
     controls.target.lerpVectors(startTarget, debrisPos, easeProgress);
     controls.update();
     
@@ -785,8 +967,6 @@ function focusOnDebris(debris, instanceId, geometryType) {
   }
   
   requestAnimationFrame(animateCamera);
-  
-  // Update UI to show zoom state
   updateZoomUI(true);
 }
 
@@ -797,7 +977,6 @@ function hideAllInstancesExcept(instancedMesh, keepInstanceId) {
   
   for (let i = 0; i < instancedMesh.count; i++) {
     if (i !== keepInstanceId) {
-      // Scale instance to 0 to hide it
       instancedMesh.getMatrixAt(i, matrix);
       tempObject.position.setFromMatrixPosition(matrix);
       tempObject.rotation.setFromRotationMatrix(matrix);
@@ -813,17 +992,14 @@ function hideAllInstancesExcept(instancedMesh, keepInstanceId) {
 function restoreAllInstances() {
   if (!focusedDebris) return;
   
-  // Restore all debris visibility and scales
   Object.entries(instancedMeshes).forEach(([type, mesh]) => {
     mesh.visible = true;
     
-    // Restore original matrices for all instances
     let instanceIndex = 0;
     const matrix = new THREE.Matrix4();
     
     debrisInstanceData.forEach(debris => {
       if (debris.geometryType === type) {
-        // Restore original scale and transformation
         matrix.makeRotationFromEuler(new THREE.Euler(
           debris.rotation.x,
           debris.rotation.y,
@@ -839,12 +1015,14 @@ function restoreAllInstances() {
     
     mesh.instanceMatrix.needsUpdate = true;
   });
+  
+  // Reapply filters after restoring
+  applyFilters();
 }
 
 function resetCameraView() {
   if (!isZoomedIn || !originalCameraPosition || !originalControlsTarget) return;
   
-  // Smooth transition back to original view
   const startPos = camera.position.clone();
   const startTarget = controls.target.clone();
   const duration = 1500;
@@ -862,12 +1040,11 @@ function resetCameraView() {
     if (progress < 1) {
       requestAnimationFrame(animateCamera);
     } else {
-      // Animation complete, restore all debris
       restoreAllInstances();
       focusedDebris = null;
       isZoomedIn = false;
       updateZoomUI(false);
-      hideSideModal(); // Ensure modal is closed
+      hideSideModal();
     }
   }
   
@@ -882,7 +1059,6 @@ function updateZoomUI(zoomed) {
   let resetButton = document.getElementById('resetViewButton');
   
   if (zoomed && !resetButton) {
-    // Create reset button
     resetButton = document.createElement('button');
     resetButton.id = 'resetViewButton';
     resetButton.innerHTML = '🔍 Reset View';
@@ -921,12 +1097,11 @@ function updateZoomUI(zoomed) {
     
     document.body.appendChild(resetButton);
   } else if (!zoomed && resetButton) {
-    // Remove reset button
     resetButton.remove();
   }
 }
 
-// Handle keyboard shortcuts for better UX
+// Handle keyboard shortcuts
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
     if (isZoomedIn && isModalOpen) {
@@ -944,7 +1119,7 @@ document.addEventListener('keydown', (event) => {
 
 window.addEventListener('click', onMouseClick);
 
-// Função para criar InstancedMesh otimizado
+// Create instanced debris mesh
 function createInstancedDebris(geometryType, count, quality) {
   const geometry = DEBRIS_GEOMETRIES[geometryType];
   const material = new THREE.MeshBasicMaterial({
@@ -976,7 +1151,7 @@ async function loadDebris() {
     
     console.log(`Processing ${debrisData.length} debris objects with instancing`);
 
-    // Limpar objetos existentes
+    // Clear existing objects
     Object.values(instancedMeshes).forEach(mesh => {
       scene.remove(mesh);
       mesh.geometry.dispose();
@@ -989,17 +1164,17 @@ async function loadDebris() {
     countryColors.clear();
     companyColors.clear();
 
-    // Inicializar geometrias
+    // Initialize geometries
     const quality = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY];
     initializeDebrisGeometries(quality);
 
     const now = new Date();
     let validPositions = 0;
     
-    // Contar quantos objetos de cada tipo teremos
+    // Count objects by geometry type
     const typeCounts = { box: 0, cylinder: 0, octahedron: 0, sphere: 0 };
     
-    // Processar dados dos debris
+    // Process debris data
     for (let i = 0; i < debrisData.length; i++) {
       const sat = debrisData[i];
       let position, altitude;
@@ -1035,7 +1210,7 @@ async function loadDebris() {
 
       const size = Math.random() < 0.1 ? Math.random() * 2 + 3 : Math.random() * 1.5 + 0.5;
       
-      // Determinar tipo de geometria
+      // Determine geometry type
       const shapeType = Math.random();
       let geometryType;
       if (shapeType < 0.3) geometryType = 'box';
@@ -1045,7 +1220,7 @@ async function loadDebris() {
       
       typeCounts[geometryType]++;
       
-      // Armazenar dados da instância
+      // Store instance data
       debrisInstanceData.push({
         position,
         size,
@@ -1064,7 +1239,7 @@ async function loadDebris() {
       });
     }
     
-    // Criar InstancedMesh para cada tipo de geometria
+    // Create InstancedMesh for each geometry type
     const geometryTypes = ['box', 'cylinder', 'octahedron', 'sphere'];
     const matrix = new THREE.Matrix4();
     const color = new THREE.Color();
@@ -1079,7 +1254,7 @@ async function loadDebris() {
         
         debrisInstanceData.forEach((debris, globalIndex) => {
           if (debris.geometryType === type) {
-            // Configurar matriz de transformação
+            // Set transformation matrix
             matrix.makeRotationFromEuler(new THREE.Euler(
               debris.rotation.x,
               debris.rotation.y,
@@ -1090,7 +1265,7 @@ async function loadDebris() {
             
             instancedMesh.setMatrixAt(instanceIndex, matrix);
             
-            // Configurar cor baseada no modo atual
+            // Set color based on current mode
             const colorValue = getColorForCategory(
               currentColorMode === 'country' ? debris.data.country : debris.data.company,
               currentColorMode
@@ -1106,6 +1281,12 @@ async function loadDebris() {
         if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
       }
     });
+
+    // Initialize filtering system
+    filteringSystem.currentMode = currentColorMode;
+    buildFilterData();
+    updateFilterUI();
+    applyFilters();
 
     const debrisCountEl = document.getElementById('debrisCount');
     if (debrisCountEl) debrisCountEl.textContent = debrisData.length;
@@ -1127,7 +1308,7 @@ function updateColors(colorMode) {
   console.log(`Updating colors by ${colorMode}`);
   currentColorMode = colorMode;
 
-  // Atualizar cores usando instancing
+  // Update colors using instancing
   const color = new THREE.Color();
   const geometryTypes = ['box', 'cylinder', 'octahedron', 'sphere'];
   
@@ -1154,6 +1335,12 @@ function updateColors(colorMode) {
     }
   });
 
+  // Update filtering system
+  filteringSystem.currentMode = colorMode;
+  buildFilterData();
+  updateFilterUI();
+  applyFilters();
+
   document.querySelectorAll('#controls button').forEach(btn => btn.classList.remove('active'));
   const activeButton = document.getElementById(`colorBy${colorMode.charAt(0).toUpperCase() + colorMode.slice(1)}`);
   if (activeButton) activeButton.classList.add('active');
@@ -1174,10 +1361,11 @@ function setDebrisCount(count) {
 // Initialize
 loadDebris();
 
-// Event listeners
+// Event listeners for color mode buttons
 document.getElementById('colorByCountry')?.addEventListener('click', () => updateColors('country'));
 document.getElementById('colorByCompany')?.addEventListener('click', () => updateColors('company'));
 
+// Event listeners for quality and count selectors
 document.getElementById('qualitySelect')?.addEventListener('change', (e) => {
   setQuality(e.target.value);
 });
@@ -1186,7 +1374,17 @@ document.getElementById('countSelect')?.addEventListener('change', (e) => {
   setDebrisCount(e.target.value);
 });
 
-// Animation loop otimizado
+// Event listeners for filtering system
+document.getElementById('searchFilter')?.addEventListener('input', (e) => {
+  filteringSystem.searchTerm = e.target.value;
+  updateFilterUI();
+});
+
+document.getElementById('selectAllFilter')?.addEventListener('click', selectAllFilters);
+document.getElementById('selectNoneFilter')?.addEventListener('click', selectNoneFilters);
+document.getElementById('resetFilter')?.addEventListener('click', resetFilters);
+
+// Animation loop
 let frameCount = 0;
 let lastTime = performance.now();
 let fps = 0;
@@ -1197,9 +1395,9 @@ function animate() {
   
   frameCount++;
   const now = performance.now();
-  animationTime = now * 0.001; // Time in seconds
+  animationTime = now * 0.001;
   
-  // Update FPS and stats once per second
+  // Update FPS once per second
   if (now - lastTime >= 1000) {
     fps = Math.round((frameCount * 1000) / (now - lastTime));
     const fpsEl = document.getElementById('fps');
@@ -1207,11 +1405,10 @@ function animate() {
     frameCount = 0;
     lastTime = now;
     
-    // Reset renderer stats periodically
     renderer.info.reset();
   }
 
-  // Update custom shader uniforms
+  // Update shader uniforms
   if (spaceSkyMaterial && spaceSkyMaterial.uniforms) {
     spaceSkyMaterial.uniforms.time.value = animationTime;
     spaceSkyMaterial.uniforms.cameraPosition.value.copy(camera.position);
@@ -1224,29 +1421,15 @@ function animate() {
   if (sunMaterial && sunMaterial.uniforms) {
     sunMaterial.uniforms.time.value = animationTime;
   }
-/*
-  // Corrected rotations with Earth's axial tilt
-  // Earth spins on its tilted axis
-  earth.rotation.y = Math.PI + animationTime * 0.02;
-  
-  // Atmosphere rotates with Earth
-  atmosphere.rotation.y = Math.PI + animationTime * 0.02;
-  
-  // Stars rotate slowly (background)
-  stars.rotation.y = animationTime * 0.001;
-  */
-  // Debris rotation - maintain their individual orbits while respecting Earth's tilt
+
+  // Apply axial tilt to debris - this ensures consistent positioning
   Object.values(instancedMeshes).forEach(mesh => {
     if (mesh) {
-      // Apply the same axial tilt to debris
       mesh.rotation.z = EARTH_AXIAL_TILT;
-      // Continue with normal rotation
-      //mesh.rotation.y = animationTime * 0.02;
-      //mesh.rotation.x = animationTime * 0.02;
     }
   });
 
-  // Update controls if needed
+  // Update controls
   if (controls.enableDamping) {
     controls.update();
   }
@@ -1255,18 +1438,18 @@ function animate() {
 }
 animate();
 
-// Handle window resize otimizado
+// Handle window resize
 function handleResize() {
   const width = window.innerWidth;
   const height = window.innerHeight;
   
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height, false); // false para não atualizar o estilo CSS
+  renderer.setSize(width, height, false);
 }
 
 let resizeTimeout;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(handleResize, 150); // Aumentado para 150ms
+  resizeTimeout = setTimeout(handleResize, 150);
 });

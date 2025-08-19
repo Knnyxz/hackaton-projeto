@@ -20,7 +20,9 @@
       border-radius: 8px;
       z-index: 100;
       backdrop-filter: blur(10px);
-      max-width: 300px;
+      max-width: 320px;
+      max-height: 90vh;
+      overflow-y: auto;
     }
     #controls button {
       margin: 5px;
@@ -31,6 +33,7 @@
       color: white;
       cursor: pointer;
       transition: background 0.3s;
+      font-size: 12px;
     }
     #controls button:hover {
       background: #45a049;
@@ -44,6 +47,7 @@
       border-radius: 4px;
       border: 1px solid #666;
       background: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
     }
     .filter-section {
       margin-top: 15px;
@@ -56,38 +60,83 @@
       color: #4CAF50;
     }
     #filterList {
-      max-height: 150px;
+      max-height: 200px;
       overflow-y: auto;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 4px;
       padding: 5px;
       margin-top: 5px;
+      scrollbar-width: thin;
+      scrollbar-color: #4CAF50 rgba(255, 255, 255, 0.1);
+    }
+    #filterList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #filterList::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    #filterList::-webkit-scrollbar-thumb {
+      background: #4CAF50;
+      border-radius: 3px;
     }
     .filter-item {
       display: flex;
       align-items: center;
-      padding: 2px 0;
-      font-size: 12px;
+      padding: 3px 5px;
+      font-size: 11px;
+      border-radius: 3px;
+      margin-bottom: 2px;
+      transition: background 0.2s;
+    }
+    .filter-item:hover {
+      background: rgba(255, 255, 255, 0.1);
     }
     .filter-item input[type="checkbox"] {
       margin-right: 8px;
+      cursor: pointer;
+    }
+    .filter-item label {
+      cursor: pointer;
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .filter-item .count {
-      margin-left: auto;
       color: #aaa;
       font-size: 10px;
+      margin-left: 10px;
     }
     #searchFilter {
-      width: 100%;
+      width: calc(100% - 12px);
       margin-bottom: 10px;
     }
     .filter-actions {
       margin-top: 10px;
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
     }
     .filter-actions button {
-      font-size: 12px;
-      padding: 5px 10px;
-      margin: 2px;
+      font-size: 11px;
+      padding: 4px 8px;
+      margin: 0;
+      flex: 1;
+      min-width: 50px;
+    }
+    .filter-stats {
+      margin-top: 10px;
+      padding: 8px;
+      background: rgba(76, 175, 80, 0.1);
+      border-radius: 4px;
+      font-size: 11px;
+      border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+    .filter-stats .stat-item {
+      display: flex;
+      justify-content: space-between;
+      margin: 2px 0;
     }
     #info {
       position: absolute;
@@ -108,11 +157,36 @@
       color: white;
       font-size: 18px;
       z-index: 200;
+      text-align: center;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-left: 4px solid #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .color-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      margin-right: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
     }
   </style>
 </head>
 <body>
-  <div id="loading">Loading space debris data...</div>
+  <div id="loading">
+    <div class="loading-spinner"></div>
+    Loading space debris data...
+  </div>
   <div id="controls">
     <div>
       <button id="colorByCountry" class="active">Color by Country</button>
@@ -138,26 +212,36 @@
     
     <div class="filter-section">
       <h4 id="filterTitle">Filter by Country</h4>
-      <input type="text" id="searchFilter" placeholder="Search..." />
+      <input type="text" id="searchFilter" placeholder="Search countries..." />
       <div class="filter-actions">
         <button id="selectAllFilter">All</button>
         <button id="selectNoneFilter">None</button>
         <button id="resetFilter">Reset</button>
       </div>
       <div id="filterList"></div>
+      <div class="filter-stats">
+        <div class="stat-item">
+          <span>Selected:</span>
+          <span id="selectedCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span>Visible Objects:</span>
+          <span id="visibleObjects">0</span>
+        </div>
+      </div>
     </div>
     
-    <div style="margin-top: 10px; font-size: 12px;">
-      <div>Size represents object dimensions</div>
-      <div>Mouse: Rotate | Wheel: Zoom</div>
+    <div style="margin-top: 15px; font-size: 11px; color: #aaa;">
+      <div>📦 Size represents object dimensions</div>
+      <div>🖱️ Click objects for details</div>
+      <div>🎮 Mouse: Rotate | Wheel: Zoom</div>
+      <div>⌨️ ESC or R: Reset view</div>
     </div>
   </div>
   <div id="info">
-    <div>Debris Count: <span id="debrisCount">0</span></div>
-    <div>Visible: <span id="visibleCount">0</span></div>
+    <div>Total Objects: <span id="debrisCount">0</span></div>
     <div>FPS: <span id="fps">--</span></div>
   </div>
-  <script type="module" src="./main.js">
-  </script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
