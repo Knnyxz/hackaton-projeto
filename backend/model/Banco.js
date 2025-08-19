@@ -56,7 +56,7 @@ class Banco {
             const response = await axios.get('https://api.keeptrack.space/v2/sats');
             const debrisList = response.data;
 
-            // Filtro: excluir registros sem nome ou altitude
+            // Filtro: excluir registros sem nome ou TLE data
             const filtered = debrisList.filter(d => d.name && d.tle1 && d.tle2);
 
             const operations = filtered.map(d => ({
@@ -68,11 +68,26 @@ class Banco {
                             type: d.type ?? null,
                             altName: d.altName ?? null,
                             country: d.country ?? 'Desconhecido',
+                            countryCode: d.countryCode ?? null,
                             company: d.owner ?? 'Desconhecido',
+                            manufacturer: d.manufacturer ?? null,
                             shape: d.shape ?? null,
                             massKg: d.Mass ? parseFloat(d.Mass) : null,
+                            launchMass: d.launchMass ? parseFloat(d.launchMass) : null,
+                            dryMass: d.dryMass ? parseFloat(d.dryMass) : null,
+                            length: d.length ? parseFloat(d.length) : null,
+                            diameter: d.diameter ? parseFloat(d.diameter) : null,
+                            span: d.span ? parseFloat(d.span) : null,
                             launchDate: d.launchDate ?? null,
                             launchVehicle: d.launchVehicle ?? null,
+                            launchSite: d.launchSite ?? null,
+                            launchPad: d.launchPad ?? null,
+                            payload: d.payload ?? null,
+                            bus: d.bus ?? null,
+                            rcs: d.rcs ? parseFloat(d.rcs) : null,
+                            vmag: d.vmag ? parseFloat(d.vmag) : null,
+                            status: d.status ?? null,
+                            stableDate: d.stableDate ?? null,
                             tle1: d.tle1,
                             tle2: d.tle2,
                             lastUpdated: new Date()
@@ -107,10 +122,7 @@ class Banco {
         
         if (await Banco.needsUpdate()) {
             console.log('Space debris data is outdated, updating...');
-            Banco.updateSpaceDebris();
-        }else{
-            console.log('Space debris data is outdated, updating...');
-            Banco.updateSpaceDebris();
+            await Banco.updateSpaceDebris(); // Added await here
         }
         
         return collection.find({}).toArray();
