@@ -9,11 +9,14 @@ const KM_TO_THREEJS = EARTH_RADIUS_THREEJS / EARTH_RADIUS_KM;
 
 // Performance settings
 const PERFORMANCE_SETTINGS = {
-  LOW_QUALITY: { segments: 4, detail: 4 },
-  MEDIUM_QUALITY: { segments: 6, detail: 6 },
-  HIGH_QUALITY: { segments: 8, detail: 8 },
+  LOW_QUALITY: { segments: 4, detail: 4, maxDebris: 10000 },
+  MEDIUM_QUALITY: { segments: 6, detail: 6, maxDebris: 25000 },
+  HIGH_QUALITY: { segments: 8, detail: 8, maxDebris: 50000 },
   CURRENT_QUALITY: 'MEDIUM_QUALITY',
-  CURRENT_COUNT: 10000
+  CURRENT_COUNT: 10000, // Reduzido drasticamente
+  USE_INSTANCING: true,
+  USE_LOD: true,
+  FRUSTUM_CULLING: true
 };
 
 const scene = new THREE.Scene();
@@ -21,13 +24,20 @@ scene.background = new THREE.Color(0x000011);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ 
-  antialias: true,
-  powerPreference: "high-performance"
+  antialias: window.devicePixelRatio <= 1, // Antialias apenas em telas de baixa resolução
+  powerPreference: "high-performance",
+  logarithmicDepthBuffer: true // Melhor precisão de profundidade
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Sombras desabilitadas para melhor performance
+// renderer.shadowMap.enabled = true;
+// renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+// Otimizações adicionais do renderer
+renderer.sortObjects = false; // Desabilitar ordenação automática
+renderer.info.autoReset = false; // Controle manual das estatísticas
+
 document.body.appendChild(renderer.domElement);
 
 // Controls
@@ -46,9 +56,10 @@ scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
 directionalLight.position.set(10, 10, 10);
-directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
+// Sombras desabilitadas para melhor performance
+// directionalLight.castShadow = true;
+// directionalLight.shadow.mapSize.width = 2048;
+// directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
 // Earth with texture
@@ -91,7 +102,7 @@ for (let i = 0; i < 2000 * 3; i += 3) {
   starsPositions[i + 2] = radius * Math.cos(phi);
 }
 starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions, 3));
-const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
+const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
 const stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
 
@@ -114,21 +125,6 @@ function createSunTexture() {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 512, 512);
   
-  // Add some solar flares/texture
-  ctx.globalCompositeOperation = 'screen';
-  for (let i = 0; i < 20; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const radius = Math.random() * 30 + 10;
-    
-    const flareGradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    flareGradient.addColorStop(0, 'rgba(255, 255, 200, 0.3)');
-    flareGradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
-    
-    ctx.fillStyle = flareGradient;
-    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  }
-  
   return new THREE.CanvasTexture(canvas);
 }
 
@@ -143,7 +139,7 @@ const sunGeometry = new THREE.SphereGeometry(50, 32, 32);
 const sunMaterial = new THREE.MeshBasicMaterial({
   map: sunTexture,
   emissive: 0xffaa00,
-  emissiveIntensity: 0.3,
+  emissiveIntensity: 0.5,
   transparent: true,
   opacity: 0.9
 });
@@ -153,7 +149,7 @@ sun.position.copy(sunPosition);
 scene.add(sun);
 
 // Create sun glow effect
-const glowGeometry = new THREE.SphereGeometry(55, 32, 32);
+const glowGeometry = new THREE.SphereGeometry(50, 32, 32);
 const glowMaterial = new THREE.MeshBasicMaterial({
   color: 0xffaa00,
   transparent: true,
@@ -166,7 +162,7 @@ sunGlow.position.copy(sunPosition);
 scene.add(sunGlow);
 
 // Create corona effect
-const coronaGeometry = new THREE.SphereGeometry(70, 32, 32);
+const coronaGeometry = new THREE.SphereGeometry(55, 27, 27);
 const coronaMaterial = new THREE.MeshBasicMaterial({
   color: 0xffffaa,
   transparent: true,
@@ -222,28 +218,36 @@ function geodeticToThreeJS(latitude, longitude, altitudeKm) {
   };
 }
 
-// Create random debris shapes
-function createDebrisGeometry(size, quality) {
+// Geometrias pré-criadas para reutilização (otimização de memória)
+const DEBRIS_GEOMETRIES = {
+  box: null,
+  cylinder: null,
+  octahedron: null,
+  sphere: null
+};
+
+// Inicializar geometrias base
+function initializeDebrisGeometries(quality) {
+  const baseSize = 0.004;
+  
+  DEBRIS_GEOMETRIES.box = new THREE.BoxGeometry(baseSize, baseSize, baseSize);
+  DEBRIS_GEOMETRIES.cylinder = new THREE.CylinderGeometry(baseSize * 0.5, baseSize * 0.4, baseSize * 2, quality.segments);
+  DEBRIS_GEOMETRIES.octahedron = new THREE.OctahedronGeometry(baseSize);
+  DEBRIS_GEOMETRIES.sphere = new THREE.SphereGeometry(baseSize, quality.segments, quality.detail);
+}
+
+// Função otimizada para selecionar geometria
+function getDebrisGeometry() {
   const shapeType = Math.random();
   
   if (shapeType < 0.3) {
-    // Box shape for debris
-    const width = size * (0.8 + Math.random() * 0.4);
-    const height = size * (0.8 + Math.random() * 0.4);
-    const depth = size * (0.8 + Math.random() * 0.4);
-    return new THREE.BoxGeometry(width, height, depth);
+    return DEBRIS_GEOMETRIES.box;
   } else if (shapeType < 0.6) {
-    // Cylinder for rocket parts
-    const radius = size * 0.5;
-    const height = size * (1.5 + Math.random());
-    return new THREE.CylinderGeometry(radius, radius * 0.8, height, quality.segments);
+    return DEBRIS_GEOMETRIES.cylinder;
   } else if (shapeType < 0.8) {
-    // Octahedron for complex debris
-    return new THREE.OctahedronGeometry(size);
+    return DEBRIS_GEOMETRIES.octahedron;
   } else {
-    // Sphere for satellites
-    const radius = size * (0.8 + Math.random() * 0.4);
-    return new THREE.SphereGeometry(radius, quality.segments, quality.detail);
+    return DEBRIS_GEOMETRIES.sphere;
   }
 }
 
@@ -290,8 +294,10 @@ const debrisTexture = createDebrisTexture();
 
 let debrisData = [];
 let debrisObjects = [];
+let instancedMeshes = {}; // Para armazenar os InstancedMesh
 let currentColorMode = 'country';
 let isLoading = false;
+let debrisInstanceData = []; // Dados dos debris para instancing
 
 // Modal functionality
 function createModal() {
@@ -384,7 +390,7 @@ function showDebrisInfo(debrisObj) {
   modal.style.display = 'block';
 }
 
-// Mouse interaction
+// Mouse interaction otimizada para instancing
 function onMouseClick(event) {
   if (isLoading) return;
   
@@ -393,19 +399,58 @@ function onMouseClick(event) {
   
   raycaster.setFromCamera(mouse, camera);
   
-  // Check for intersections with debris objects
-  const intersects = raycaster.intersectObjects(debrisObjects.map(obj => obj.mesh));
+  // Verificar intersecções com InstancedMesh
+  const instancedMeshArray = Object.values(instancedMeshes);
+  const intersects = raycaster.intersectObjects(instancedMeshArray);
   
   if (intersects.length > 0) {
-    const intersectedObject = intersects[0].object;
-    const debrisObj = debrisObjects.find(obj => obj.mesh === intersectedObject);
-    if (debrisObj) {
-      showDebrisInfo(debrisObj.data);
+    const intersect = intersects[0];
+    const instanceId = intersect.instanceId;
+    
+    if (instanceId !== undefined) {
+      // Encontrar o debris correspondente
+      const intersectedMesh = intersect.object;
+      let geometryType = null;
+      
+      // Identificar o tipo de geometria
+      Object.entries(instancedMeshes).forEach(([type, mesh]) => {
+        if (mesh === intersectedMesh) {
+          geometryType = type;
+        }
+      });
+      
+      if (geometryType) {
+        // Encontrar o debris correto baseado no instanceId e tipo
+        let currentIndex = 0;
+        for (const debris of debrisInstanceData) {
+          if (debris.geometryType === geometryType) {
+            if (currentIndex === instanceId) {
+              showDebrisInfo(debris.data);
+              return;
+            }
+            currentIndex++;
+          }
+        }
+      }
     }
   }
 }
 
 window.addEventListener('click', onMouseClick);
+
+// Função para criar InstancedMesh otimizado
+function createInstancedDebris(geometryType, count, quality) {
+  const geometry = DEBRIS_GEOMETRIES[geometryType];
+  const material = new THREE.MeshBasicMaterial({
+    map: debrisTexture,
+    transparent: false
+  });
+  
+  const instancedMesh = new THREE.InstancedMesh(geometry, material, count);
+  instancedMesh.frustumCulled = PERFORMANCE_SETTINGS.FRUSTUM_CULLING;
+  
+  return instancedMesh;
+}
 
 async function loadDebris() {
   if (isLoading) return;
@@ -420,25 +465,35 @@ async function loadDebris() {
     const raw = await res.json();
     
     const validDebris = raw.filter(d => d.tle1 && d.tle2);
-    debrisData = validDebris.slice(0, PERFORMANCE_SETTINGS.CURRENT_COUNT);
+    const maxCount = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY].maxDebris;
+    debrisData = validDebris.slice(0, Math.min(PERFORMANCE_SETTINGS.CURRENT_COUNT, maxCount));
     
-    console.log(`Processing ${debrisData.length} debris objects`);
+    console.log(`Processing ${debrisData.length} debris objects with instancing`);
 
-    // Clear existing objects
-    debrisObjects.forEach(obj => {
-      scene.remove(obj.mesh);
-      obj.geometry.dispose();
-      obj.material.dispose();
+    // Limpar objetos existentes
+    Object.values(instancedMeshes).forEach(mesh => {
+      scene.remove(mesh);
+      mesh.geometry.dispose();
+      mesh.material.dispose();
     });
+    instancedMeshes = {};
     debrisObjects = [];
+    debrisInstanceData = [];
     
     countryColors.clear();
     companyColors.clear();
 
-    const now = new Date();
+    // Inicializar geometrias
     const quality = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY];
-    let validPositions = 0;
+    initializeDebrisGeometries(quality);
 
+    const now = new Date();
+    let validPositions = 0;
+    
+    // Contar quantos objetos de cada tipo teremos
+    const typeCounts = { box: 0, cylinder: 0, octahedron: 0, sphere: 0 };
+    
+    // Processar dados dos debris
     for (let i = 0; i < debrisData.length; i++) {
       const sat = debrisData[i];
       let position, altitude;
@@ -472,57 +527,84 @@ async function loadDebris() {
         position = geodeticToThreeJS(lat, lon, altitude);
       }
 
-      const size = Math.random() < 0.1 ? Math.random() * 0.008 + 0.01 : Math.random() * 0.004 + 0.002;
+      const size = Math.random() < 0.1 ? Math.random() * 2 + 3 : Math.random() * 1.5 + 0.5;
       
-      // Create unique geometry for each debris
-      const geometry = createDebrisGeometry(size, quality);
+      // Determinar tipo de geometria
+      const shapeType = Math.random();
+      let geometryType;
+      if (shapeType < 0.3) geometryType = 'box';
+      else if (shapeType < 0.6) geometryType = 'cylinder';
+      else if (shapeType < 0.8) geometryType = 'octahedron';
+      else geometryType = 'sphere';
       
-      // Create material with color and texture
-      const colorValue = getColorForCategory(
-        currentColorMode === 'country' ? (sat.country || 'Unknown') : (sat.company || 'Unknown'),
-        currentColorMode
-      );
+      typeCounts[geometryType]++;
       
-      const material = new THREE.MeshPhongMaterial({
-        color: colorValue,
-        map: debrisTexture,
-        shininess: 30,
-        specular: 0x444444
-      });
-      
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(position.x, position.y, position.z);
-      
-      // Add some random rotation
-      mesh.rotation.set(
-        Math.random() * Math.PI * 2,
-        Math.random() * Math.PI * 2,
-        Math.random() * Math.PI * 2
-      );
-      
-      mesh.castShadow = true;
-      mesh.receiveShadow = false;
-      
-      scene.add(mesh);
-      
-      debrisObjects.push({
-        mesh,
-        geometry,
-        material,
+      // Armazenar dados da instância
+      debrisInstanceData.push({
+        position,
+        size,
+        rotation: {
+          x: Math.random() * Math.PI * 2,
+          y: Math.random() * Math.PI * 2,
+          z: Math.random() * Math.PI * 2
+        },
+        geometryType,
         data: {
           ...sat,
-          size: size * 1000, // Convert back to display size
           altitude,
           country: sat.country || 'Unknown',
           company: sat.company || 'Unknown'
         }
       });
     }
+    
+    // Criar InstancedMesh para cada tipo de geometria
+    const geometryTypes = ['box', 'cylinder', 'octahedron', 'sphere'];
+    const matrix = new THREE.Matrix4();
+    const color = new THREE.Color();
+    
+    geometryTypes.forEach(type => {
+      if (typeCounts[type] > 0) {
+        const instancedMesh = createInstancedDebris(type, typeCounts[type], quality);
+        instancedMeshes[type] = instancedMesh;
+        scene.add(instancedMesh);
+        
+        let instanceIndex = 0;
+        
+        debrisInstanceData.forEach((debris, globalIndex) => {
+          if (debris.geometryType === type) {
+            // Configurar matriz de transformação
+            matrix.makeRotationFromEuler(new THREE.Euler(
+              debris.rotation.x,
+              debris.rotation.y,
+              debris.rotation.z
+            ));
+            matrix.scale(new THREE.Vector3(debris.size, debris.size, debris.size));
+            matrix.setPosition(debris.position.x, debris.position.y, debris.position.z);
+            
+            instancedMesh.setMatrixAt(instanceIndex, matrix);
+            
+            // Configurar cor baseada no modo atual
+            const colorValue = getColorForCategory(
+              currentColorMode === 'country' ? debris.data.country : debris.data.company,
+              currentColorMode
+            );
+            color.setHex(colorValue);
+            instancedMesh.setColorAt(instanceIndex, color);
+            
+            instanceIndex++;
+          }
+        });
+        
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
+      }
+    });
 
     const debrisCountEl = document.getElementById('debrisCount');
     if (debrisCountEl) debrisCountEl.textContent = debrisData.length;
 
-    console.log(`Created ${validPositions} valid positions, ${debrisData.length - validPositions} fallback positions`);
+    console.log(`Created ${validPositions} valid positions, ${debrisData.length - validPositions} fallback positions using instancing`);
     
   } catch (error) {
     console.error('Error loading debris:', error);
@@ -539,12 +621,31 @@ function updateColors(colorMode) {
   console.log(`Updating colors by ${colorMode}`);
   currentColorMode = colorMode;
 
-  debrisObjects.forEach(obj => {
-    const colorValue = getColorForCategory(
-      colorMode === 'country' ? obj.data.country : obj.data.company,
-      colorMode
-    );
-    obj.material.color.setHex(colorValue);
+  // Atualizar cores usando instancing
+  const color = new THREE.Color();
+  const geometryTypes = ['box', 'cylinder', 'octahedron', 'sphere'];
+  
+  geometryTypes.forEach(type => {
+    const instancedMesh = instancedMeshes[type];
+    if (!instancedMesh) return;
+    
+    let instanceIndex = 0;
+    
+    debrisInstanceData.forEach(debris => {
+      if (debris.geometryType === type) {
+        const colorValue = getColorForCategory(
+          colorMode === 'country' ? debris.data.country : debris.data.company,
+          colorMode
+        );
+        color.setHex(colorValue);
+        instancedMesh.setColorAt(instanceIndex, color);
+        instanceIndex++;
+      }
+    });
+    
+    if (instancedMesh.instanceColor) {
+      instancedMesh.instanceColor.needsUpdate = true;
+    }
   });
 
   document.querySelectorAll('#controls button').forEach(btn => btn.classList.remove('active'));
@@ -579,53 +680,65 @@ document.getElementById('countSelect')?.addEventListener('change', (e) => {
   setDebrisCount(e.target.value);
 });
 
-// Animation loop
+// Animation loop otimizado
 let frameCount = 0;
 let lastTime = performance.now();
 let fps = 0;
+let animationTime = 0;
 
 function animate() {
   requestAnimationFrame(animate);
   
   frameCount++;
   const now = performance.now();
+  animationTime = now * 0.001; // Tempo em segundos
+  
+  // Atualizar FPS e estatísticas apenas a cada segundo
   if (now - lastTime >= 1000) {
     fps = Math.round((frameCount * 1000) / (now - lastTime));
     const fpsEl = document.getElementById('fps');
     if (fpsEl) fpsEl.textContent = fps;
     frameCount = 0;
     lastTime = now;
+    
+    // Resetar estatísticas do renderer periodicamente
+    renderer.info.reset();
   }
 
-  // Rotate Earth
-  earth.rotation.y += 0.001;
-  atmosphere.rotation.y += 0.0008;
+  // Rotações otimizadas (apenas objetos principais)
+  earth.rotation.y = animationTime * 0.05; // Velocidade mais visível
+  atmosphere.rotation.y = animationTime * 0.04; // Ligeiramente mais lenta que a Terra
+  stars.rotation.y = animationTime * 0.01; // Rotação lenta das estrelas
   
-  // Rotate stars
-  stars.rotation.y += 0.0001;
-  
-  // Rotate debris objects slightly
-  debrisObjects.forEach((obj, index) => {
-    if (index % 10 === 0) { // Only rotate every 10th object for performance
-      obj.mesh.rotation.x += 0.001;
-      obj.mesh.rotation.y += 0.002;
+  // Rotação sutil dos debris usando instancing
+  Object.values(instancedMeshes).forEach(mesh => {
+    if (mesh) {
+      mesh.rotation.x = animationTime * 0.02;
+      mesh.rotation.z = animationTime * 0.015;
     }
   });
 
-  controls.update();
+  // Atualizar controles apenas se necessário
+  if (controls.enableDamping) {
+    controls.update();
+  }
+  
   renderer.render(scene, camera);
 }
 animate();
 
-// Handle window resize
+// Handle window resize otimizado
 function handleResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  
+  camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(width, height, false); // false para não atualizar o estilo CSS
 }
 
 let resizeTimeout;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(handleResize, 100);
+  resizeTimeout = setTimeout(handleResize, 150); // Aumentado para 150ms
 });
