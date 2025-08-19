@@ -116,7 +116,7 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 // Position the sun far away (define before lighting)
-const sunDistance = 800;
+const sunDistance = 550;
 const sunPosition = new THREE.Vector3(sunDistance, sunDistance * 0.3, -sunDistance * 0.5);
 
 // Enhanced lighting
