@@ -545,6 +545,8 @@ function showSideModal(debrisObj) {
   if (isModalOpen) return;
   isModalOpen = true;
 
+  setControlsEnabled(false);
+
   const noradId = debrisObj.tle1 ? debrisObj.tle1.substring(2, 7).trim() : 'N/A';
   
   const getObjectType = (type) => {
@@ -654,6 +656,8 @@ ${debrisObj.tle2 || 'TLE Line 2 not available'}</pre>
 function hideSideModal() {
   sideModal.style.right = '-400px';
   isModalOpen = false;
+
+  setControlsEnabled(true);
 }
 
 // FILTERING SYSTEM IMPLEMENTATION
@@ -1066,6 +1070,9 @@ function resetCameraView() {
       isZoomedIn = false;
       updateZoomUI(false);
       hideSideModal();
+      
+      // Ensure controls are re-enabled
+      setControlsEnabled(true);
     }
   }
   
@@ -1455,6 +1462,15 @@ function updateStatisticsUI(stats) {
         .map(item => `<li>${item._id}: ${item.count}</li>`)
         .join('');
     }
+  }
+}
+
+function setControlsEnabled(enabled) {
+  const controlsDiv = document.getElementById('controls');
+  if (enabled) {
+    controlsDiv.classList.remove('disabled');
+  } else {
+    controlsDiv.classList.add('disabled');
   }
 }
 
