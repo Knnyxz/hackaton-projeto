@@ -20,7 +20,70 @@ const PERFORMANCE_SETTINGS = {
 };
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000011);
+// Background será definido por shader customizado mais adiante
+// scene.background = new THREE.Color(0x000011);
+
+// Shaders customizados para fundo espacial realista
+const spaceVertexShader = `
+  varying vec3 vWorldPosition;
+  varying vec2 vUv;
+  
+  void main() {
+    vUv = uv;
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const spaceFragmentShader = `
+  uniform float time;
+  varying vec3 vWorldPosition;
+  varying vec2 vUv;
+  
+  // Função de ruído para nebulosas
+  float noise(vec3 p) {
+    return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+  }
+  
+  float fbm(vec3 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    
+    for(int i = 0; i < 4; i++) {
+      value += amplitude * noise(p * frequency);
+      amplitude *= 0.5;
+      frequency *= 2.0;
+    }
+    return value;
+  }
+  
+  void main() {
+    vec3 direction = normalize(vWorldPosition - cameraPosition);
+    
+    // Gradiente base do espaço profundo
+    float depth = length(vWorldPosition - cameraPosition) / 1000.0;
+    vec3 deepSpace = mix(vec3(0.02, 0.02, 0.08), vec3(0.0, 0.0, 0.02), depth);
+    
+    // Nebulosas coloridas
+    vec3 nebulaPos = direction * 10.0 + vec3(time * 0.01);
+    float nebula1 = fbm(nebulaPos * 0.5);
+    float nebula2 = fbm(nebulaPos * 0.3 + vec3(100.0));
+    
+    vec3 nebulaColor1 = vec3(0.8, 0.2, 0.6) * nebula1 * 0.3;
+    vec3 nebulaColor2 = vec3(0.2, 0.6, 0.9) * nebula2 * 0.2;
+    
+    // Estrelas distantes
+    float stars = noise(direction * 200.0);
+    stars = pow(stars, 20.0) * 2.0;
+    
+    // Combinação final
+    vec3 finalColor = deepSpace + nebulaColor1 + nebulaColor2 + vec3(stars);
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+  }
+`;
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ 
@@ -50,41 +113,99 @@ camera.position.set(5, 3, 5);
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
+// Position the sun far away (define before lighting)
+const sunDistance = 800;
+const sunPosition = new THREE.Vector3(sunDistance, sunDistance * 0.3, -sunDistance * 0.5);
+
 // Enhanced lighting
 const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(10, 10, 10);
+// Posicionar a luz na direção do Sol para iluminação realista
+directionalLight.position.copy(sunPosition);
+directionalLight.target.position.set(0, 0, 0); // Apontar para a Terra
 // Sombras desabilitadas para melhor performance
 // directionalLight.castShadow = true;
 // directionalLight.shadow.mapSize.width = 2048;
 // directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
+scene.add(directionalLight.target);
 
 // Earth with texture
 const earthGeometry = new THREE.SphereGeometry(EARTH_RADIUS_THREEJS, 64, 64);
 const textureLoader = new THREE.TextureLoader();
 
 // Load earth texture (using a publicly available earth texture)
-const earthTexture = textureLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+const earthTexture = textureLoader.load('./resources/textures/earth_2.jpg');
 const earthMaterial = new THREE.MeshPhongMaterial({ 
   map: earthTexture,
   shininess: 30,
   specular: 0x222222
 });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+// Ajustar rotação inicial para alinhar dia/noite com a iluminação do Sol
+earth.rotation.y = Math.PI; // 180 graus para alinhar a textura com a luz
 earth.castShadow = false;
 earth.receiveShadow = false;
 scene.add(earth);
 
-// Enhanced atmosphere
+// Enhanced atmosphere com shader realista
+const atmosphereVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+  
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const atmosphereFragmentShader = `
+  uniform vec3 sunDirection;
+  uniform float time;
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+  
+  void main() {
+    vec3 normal = normalize(vNormal);
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+    
+    // Efeito de dispersão atmosférica
+    float fresnel = 1.0 - dot(normal, viewDirection);
+    fresnel = pow(fresnel, 2.0);
+    
+    // Iluminação do Sol
+    float sunDot = dot(normal, normalize(sunDirection));
+    float sunIntensity = max(0.0, sunDot);
+    
+    // Cores da atmosfera baseadas na iluminação
+    vec3 dayColor = vec3(0.5, 0.8, 1.0);
+    vec3 sunsetColor = vec3(1.0, 0.6, 0.3);
+    vec3 nightColor = vec3(0.1, 0.2, 0.4);
+    
+    vec3 atmosphereColor = mix(nightColor, dayColor, sunIntensity);
+    atmosphereColor = mix(atmosphereColor, sunsetColor, pow(max(0.0, sunDot * 0.5 + 0.5), 3.0));
+    
+    float opacity = fresnel * (0.3 + sunIntensity * 0.4);
+    
+    gl_FragColor = vec4(atmosphereColor, opacity);
+  }
+`;
+
 const atmosphereGeometry = new THREE.SphereGeometry(EARTH_RADIUS_THREEJS * 1.025, 32, 32);
-const atmosphereMaterial = new THREE.MeshBasicMaterial({
-  color: 0x88ccff,
+const atmosphereMaterial = new THREE.ShaderMaterial({
+  vertexShader: atmosphereVertexShader,
+  fragmentShader: atmosphereFragmentShader,
+  uniforms: {
+    sunDirection: { value: sunPosition.clone().normalize() },
+    time: { value: 0.0 }
+  },
   transparent: true,
-  opacity: 0.15,
-  side: THREE.BackSide
+  side: THREE.BackSide,
+  blending: THREE.AdditiveBlending
 });
 const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
 scene.add(atmosphere);
@@ -105,6 +226,21 @@ starsGeometry.setAttribute('position', new THREE.BufferAttribute(starsPositions,
 const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
 const stars = new THREE.Points(starsGeometry, starsMaterial);
 scene.add(stars);
+
+// Fundo espacial realista com shaders customizados
+const spaceSkyGeometry = new THREE.SphereGeometry(2000, 32, 32);
+const spaceSkyMaterial = new THREE.ShaderMaterial({
+  vertexShader: spaceVertexShader,
+  fragmentShader: spaceFragmentShader,
+  uniforms: {
+    time: { value: 0.0 },
+    cameraPosition: { value: camera.position }
+  },
+  side: THREE.BackSide,
+  depthWrite: false
+});
+const spaceSky = new THREE.Mesh(spaceSkyGeometry, spaceSkyMaterial);
+scene.add(spaceSky);
 
 // Create the Sun
 function createSunTexture() {
@@ -130,18 +266,61 @@ function createSunTexture() {
 
 const sunTexture = createSunTexture();
 
-// Position the sun far away
-const sunDistance = 800;
-const sunPosition = new THREE.Vector3(sunDistance, sunDistance * 0.3, -sunDistance * 0.5);
+// Shader customizado para o Sol com efeito de corona
+const sunVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+  
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vPosition = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const sunFragmentShader = `
+  uniform float time;
+  varying vec3 vNormal;
+  varying vec3 vPosition;
+  
+  // Função de ruído para efeitos de plasma
+  float noise(vec3 p) {
+    return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+  }
+  
+  void main() {
+    vec3 normal = normalize(vNormal);
+    
+    // Efeito de plasma na superfície do Sol
+    vec3 plasmaPos = vPosition * 0.1 + vec3(time * 0.5);
+    float plasma1 = noise(plasmaPos);
+    float plasma2 = noise(plasmaPos * 2.0 + vec3(time * 0.3));
+    
+    // Cores do Sol baseadas no plasma
+    vec3 coreColor = vec3(1.0, 1.0, 0.9);
+    vec3 surfaceColor = vec3(1.0, 0.7, 0.2);
+    vec3 flareColor = vec3(1.0, 0.3, 0.1);
+    
+    float intensity = plasma1 * 0.7 + plasma2 * 0.3;
+    vec3 sunColor = mix(surfaceColor, coreColor, intensity);
+    sunColor = mix(sunColor, flareColor, pow(intensity, 3.0));
+    
+    // Efeito de brilho baseado na normal
+    float fresnel = 1.0 - dot(normal, vec3(0.0, 0.0, 1.0));
+    sunColor += vec3(0.5, 0.3, 0.1) * pow(fresnel, 2.0);
+    
+    gl_FragColor = vec4(sunColor, 1.0);
+  }
+`;
 
 // Create sun geometry and material
 const sunGeometry = new THREE.SphereGeometry(50, 32, 32);
-const sunMaterial = new THREE.MeshBasicMaterial({
-  map: sunTexture,
-  emissive: 0xffaa00,
-  emissiveIntensity: 0.5,
-  transparent: true,
-  opacity: 0.9
+const sunMaterial = new THREE.ShaderMaterial({
+  vertexShader: sunVertexShader,
+  fragmentShader: sunFragmentShader,
+  uniforms: {
+    time: { value: 0.0 }
+  }
 });
 
 const sun = new THREE.Mesh(sunGeometry, sunMaterial);
@@ -705,16 +884,33 @@ function animate() {
     renderer.info.reset();
   }
 
-  // Rotações otimizadas (apenas objetos principais)
-  earth.rotation.y = animationTime * 0.05; // Velocidade mais visível
-  atmosphere.rotation.y = animationTime * 0.04; // Ligeiramente mais lenta que a Terra
-  stars.rotation.y = animationTime * 0.01; // Rotação lenta das estrelas
+  // Atualizar uniforms dos shaders customizados
+  if (spaceSkyMaterial && spaceSkyMaterial.uniforms) {
+    spaceSkyMaterial.uniforms.time.value = animationTime;
+    spaceSkyMaterial.uniforms.cameraPosition.value.copy(camera.position);
+  }
   
-  // Rotação sutil dos debris usando instancing
+  if (atmosphereMaterial && atmosphereMaterial.uniforms) {
+    atmosphereMaterial.uniforms.time.value = animationTime;
+  }
+  
+  if (sunMaterial && sunMaterial.uniforms) {
+    sunMaterial.uniforms.time.value = animationTime;
+  }
+
+  // Rotações otimizadas (apenas objetos principais)
+  // Terra gira no sentido correto (oeste para leste) com velocidade realista
+  earth.rotation.y = Math.PI + animationTime * 0.02; // Rotação com offset para alinhar dia/noite
+  atmosphere.rotation.y = Math.PI + animationTime * 0.02; // Mesma velocidade da Terra
+  stars.rotation.y = animationTime * 0.001; // Rotação muito lenta das estrelas
+  
+  // Rotação dos debris alinhada com a Terra (mesmo sentido)
   Object.values(instancedMeshes).forEach(mesh => {
     if (mesh) {
-      mesh.rotation.x = animationTime * 0.02;
-      mesh.rotation.z = animationTime * 0.015;
+      // Rotação no mesmo sentido da Terra (positivo)
+      mesh.rotation.y = animationTime * 0.025; // Ligeiramente mais rápido que a Terra
+      mesh.rotation.x = animationTime * 0.005; // Rotação sutil no eixo X
+      mesh.rotation.z = animationTime * 0.003; // Rotação sutil no eixo Z
     }
   });
 
