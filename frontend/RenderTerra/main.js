@@ -104,7 +104,7 @@ const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
 // Position the sun far away
-const sunDistance = 800;
+const sunDistance = 500;
 const sunPosition = new THREE.Vector3(sunDistance, sunDistance * 0.3, -sunDistance * 0.5);
 
 // Enhanced lighting
@@ -170,7 +170,7 @@ const atmosphereFragmentShader = `
     vec3 atmosphereColor = mix(nightColor, dayColor, sunIntensity);
     atmosphereColor = mix(atmosphereColor, sunsetColor, pow(max(0.0, sunDot * 0.5 + 0.5), 3.0));
     
-    float opacity = fresnel * (0.3 + sunIntensity * 0.4);
+    float opacity = fresnel * (0.3 + sunIntensity * 0.5);
     
     gl_FragColor = vec4(atmosphereColor, opacity);
   }
