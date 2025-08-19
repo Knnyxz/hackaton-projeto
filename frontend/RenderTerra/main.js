@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import * as satellite from 'https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js';
+//from https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js
+import * as satellite from './import/satellite-6.0.1';
 
 // Constants
 const EARTH_RADIUS_KM = 6371;
 const EARTH_RADIUS_THREEJS = 1;
 const KM_TO_THREEJS = EARTH_RADIUS_THREEJS / EARTH_RADIUS_KM;
+const EARTH_AXIAL_TILT = 23.5 * Math.PI / 180;
 
 // Performance settings
 const PERFORMANCE_SETTINGS = {
@@ -85,7 +87,7 @@ const spaceFragmentShader = `
   }
 `;
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.01, 1000);
 const renderer = new THREE.WebGLRenderer({ 
   antialias: window.devicePixelRatio <= 1, // Antialias apenas em telas de baixa resolução
   powerPreference: "high-performance",
@@ -144,8 +146,8 @@ const earthMaterial = new THREE.MeshPhongMaterial({
   specular: 0x222222
 });
 const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-// Ajustar rotação inicial para alinhar dia/noite com a iluminação do Sol
-earth.rotation.y = Math.PI; // 180 graus para alinhar a textura com a luz
+earth.rotation.z = -EARTH_AXIAL_TILT; // Apply axial tilt
+earth.rotation.y = Math.PI; // 180 degrees for texture alignment
 earth.castShadow = false;
 earth.receiveShadow = false;
 scene.add(earth);
@@ -471,6 +473,7 @@ function createDebrisTexture() {
 
 const debrisTexture = createDebrisTexture();
 
+let isModalOpen = false;
 let debrisData = [];
 let debrisObjects = [];
 let instancedMeshes = {}; // Para armazenar os InstancedMesh
@@ -478,100 +481,207 @@ let currentColorMode = 'country';
 let isLoading = false;
 let debrisInstanceData = []; // Dados dos debris para instancing
 
-// Modal functionality
-function createModal() {
+// Camera and focus management
+let focusedDebris = null;
+let originalCameraPosition = null;
+let originalControlsTarget = null;
+let isZoomedIn = false;
+
+// Side modal functionality
+function createSideModal() {
   const modal = document.createElement('div');
-  modal.id = 'debrisModal';
+  modal.id = 'sideModal';
   modal.style.cssText = `
-    display: none;
     position: fixed;
-    z-index: 1000;
-    left: 0;
     top: 0;
-    width: 100%;
+    right: -400px;
+    width: 380px;
     height: 100%;
-    background-color: rgba(0,0,0,0.8);
-    backdrop-filter: blur(5px);
+    background: linear-gradient(135deg, rgba(26, 26, 26, 0.95), rgba(30, 30, 30, 0.95));
+    backdrop-filter: blur(20px);
+    border-left: 2px solid rgba(76, 175, 80, 0.3);
+    z-index: 1000;
+    transition: right 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow-y: auto;
   `;
   
   const modalContent = document.createElement('div');
   modalContent.style.cssText = `
-    background-color: #1a1a1a;
-    margin: 5% auto;
-    padding: 30px;
-    border-radius: 15px;
-    width: 80%;
-    max-width: 600px;
-    color: white;
-    font-family: Arial, sans-serif;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+    padding: 20px;
+    height: calc(100% - 60px);
+    overflow-y: auto;
   `;
   
-  const closeBtn = document.createElement('span');
-  closeBtn.innerHTML = '&times;';
+  const closeBtn = document.createElement('button');
+  closeBtn.innerHTML = '× Close';
   closeBtn.style.cssText = `
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(244, 67, 54, 0.8);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
     cursor: pointer;
-    line-height: 1;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+    z-index: 1001;
   `;
   
-  closeBtn.onclick = () => modal.style.display = 'none';
+  closeBtn.addEventListener('mouseenter', () => {
+    closeBtn.style.background = 'rgba(244, 67, 54, 1)';
+    closeBtn.style.transform = 'scale(1.05)';
+  });
+  
+  closeBtn.addEventListener('mouseleave', () => {
+    closeBtn.style.background = 'rgba(244, 67, 54, 0.8)';
+    closeBtn.style.transform = 'scale(1)';
+  });
+  
+  closeBtn.onclick = () => {
+    hideSideModal();
+    resetCameraView();
+  };
   
   const modalBody = document.createElement('div');
-  modalBody.id = 'modalBody';
+  modalBody.id = 'sideModalBody';
+  modalBody.style.cssText = `
+    margin-top: 50px;
+  `;
   
   modalContent.appendChild(closeBtn);
   modalContent.appendChild(modalBody);
   modal.appendChild(modalContent);
   document.body.appendChild(modal);
   
-  // Close modal when clicking outside
-  modal.onclick = (e) => {
-    if (e.target === modal) modal.style.display = 'none';
-  };
-  
   return modal;
 }
 
-const modal = createModal();
+const sideModal = createSideModal();
 
-function showDebrisInfo(debrisObj) {
-  const modalBody = document.getElementById('modalBody');
+function showSideModal(debrisObj) {
+  if (isModalOpen) return;
+  isModalOpen = true;
+
+  const noradId = debrisObj.tle1 ? debrisObj.tle1.substring(2, 7).trim() : 'N/A';
+  
+  const getObjectType = (type) => {
+    switch(type) {
+      case 1: return 'Payload';
+      case 2: return 'Rocket Body';
+      case 3: return 'Debris';
+      default: return 'Unknown';
+    }
+  };
+  
+  const getCountryName = (code) => {
+    const countryCodes = {
+      'US': 'United States',
+      'RU': 'Russia',
+      'CN': 'China',
+      'J': 'Japan',
+      'IN': 'India',
+      'F': 'France',
+      'D': 'Germany',
+      'GB': 'United Kingdom',
+      'I': 'Italy',
+      'CA': 'Canada',
+      'EUME': 'European Union',
+      'ESA': 'European Space Agency'
+    };
+    return countryCodes[code] || code || 'Unknown';
+  };
+
+  const getSizeCategory = (massKg, diameter, length) => {
+    const mass = massKg || 0;
+    const size = Math.max(diameter || 0, length || 0);
+    
+    if (mass > 1000 || size > 5) return 'Large';
+    if (mass > 100 || size > 2) return 'Medium';
+    if (mass > 10 || size > 0.5) return 'Small';
+    return 'Tiny';
+  };
+
+  const modalBody = document.getElementById('sideModalBody');
   modalBody.innerHTML = `
-    <h2 style="margin-top: 0; color: #4CAF50;">Space Debris Information</h2>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-      <div>
-        <h3 style="color: #ff6b6b; margin-bottom: 10px;">Basic Info</h3>
-        <p><strong>Name:</strong> ${debrisObj.name || 'Unknown'}</p>
-        <p><strong>Country:</strong> ${debrisObj.country || 'Unknown'}</p>
-        <p><strong>Company:</strong> ${debrisObj.company || 'Unknown'}</p>
-        <p><strong>NORAD ID:</strong> ${debrisObj.norad_id || 'N/A'}</p>
-      </div>
-      <div>
-        <h3 style="color: #4ecdc4; margin-bottom: 10px;">Orbital Data</h3>
-        <p><strong>Launch Date:</strong> ${debrisObj.launch_date || 'Unknown'}</p>
-        <p><strong>Size Category:</strong> ${debrisObj.size > 10 ? 'Large' : debrisObj.size > 3 ? 'Medium' : debrisObj.size > 1 ? 'Small' : 'Tiny'}</p>
-        <p><strong>Altitude:</strong> ~${Math.round(debrisObj.altitude || 0)} km</p>
-        <p><strong>Object Type:</strong> ${debrisObj.object_type || 'Debris'}</p>
+    <div style="text-align: center; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(33, 150, 243, 0.2)); border-radius: 12px; border: 1px solid rgba(76, 175, 80, 0.3);">
+      <h2 style="margin: 0; color: #4CAF50; font-size: 20px;">🛰️ ${debrisObj.objectName || 'Unknown Object'}</h2>
+      <div style="margin-top: 8px; font-size: 12px; color: #80CBC4;">${debrisObj.altName || ''}</div>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #ff6b6b; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(255, 107, 107, 0.3);">📋 Identification</h3>
+      <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">NORAD ID:</span> ${noradId}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Object Type:</span> ${getObjectType(debrisObj.type)}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Country:</span> ${getCountryName(debrisObj.countryCode || debrisObj.country)}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Company:</span> ${debrisObj.company || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Status:</span> ${debrisObj.status || 'Unknown'}</p>
       </div>
     </div>
-    <div style="margin-top: 20px;">
-      <h3 style="color: #f9ca24; margin-bottom: 10px;">TLE Data</h3>
-      <p style="font-family: monospace; font-size: 12px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 5px;">
-        ${debrisObj.tle1 || 'TLE Line 1 not available'}<br>
-        ${debrisObj.tle2 || 'TLE Line 2 not available'}
-      </p>
+
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #4fc3f7; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(79, 195, 247, 0.3);">📦 Physical Characteristics</h3>
+      <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Mass:</span> ${debrisObj.massKg > 0 ? debrisObj.massKg + ' kg' : 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Dry Mass:</span> ${debrisObj.dryMass > 0 ? debrisObj.dryMass + ' kg' : 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Mass:</span> ${debrisObj.launchMass > 0 ? debrisObj.launchMass + ' kg' : 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Size Category:</span> ${getSizeCategory(debrisObj.massKg, debrisObj.diameter, debrisObj.length)}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Dimensions:</span> ${[debrisObj.diameter, debrisObj.length, debrisObj.span].filter(Boolean).join(' × ') || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Shape:</span> ${debrisObj.shape || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Bus:</span> ${debrisObj.bus || 'Unknown'}</p>
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #f39c12; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(243, 156, 18, 0.3);">🚀 Launch Information</h3>
+      <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Date:</span> ${debrisObj.launchDate || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Vehicle:</span> ${debrisObj.launchVehicle || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Site:</span> ${debrisObj.launchSite || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Pad:</span> ${debrisObj.launchPad || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Payload:</span> ${debrisObj.payload || 'Unknown'}</p>
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #f9ca24; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(249, 202, 36, 0.3);">🌍 Orbital Data</h3>
+      <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Altitude:</span> ~${Math.round(debrisObj.altitude || 0)} km</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">RCS:</span> ${debrisObj.rcs > 0 ? debrisObj.rcs.toFixed(4) + ' m²' : 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Manufacturer:</span> ${debrisObj.manufacturer || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Stabilization Date:</span> ${debrisObj.stableDate || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Visual Magnitude:</span> ${debrisObj.vmag || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Last Updated:</span> ${debrisObj.lastUpdated ? new Date(debrisObj.lastUpdated).toLocaleDateString() : 'Unknown'}</p>
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+      <h3 style="color: #e91e63; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(233, 30, 99, 0.3);">📡 TLE Data</h3>
+      <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px;">
+        <pre style="font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; margin: 0; color: #81C784; white-space: pre-wrap; word-break: break-all;">
+${debrisObj.tle1 || 'TLE Line 1 not available'}
+${debrisObj.tle2 || 'TLE Line 2 not available'}</pre>
+      </div>
     </div>
   `;
-  modal.style.display = 'block';
+  
+  sideModal.style.right = '0px';
+}
+
+function hideSideModal() {
+  sideModal.style.right = '-400px';
+  isModalOpen = false;
 }
 
 // Mouse interaction otimizada para instancing
 function onMouseClick(event) {
-  if (isLoading) return;
+  if (isLoading || isModalOpen) return;
   
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -604,7 +714,9 @@ function onMouseClick(event) {
         for (const debris of debrisInstanceData) {
           if (debris.geometryType === geometryType) {
             if (currentIndex === instanceId) {
-              showDebrisInfo(debris.data);
+              // Store debris info and zoom to it
+              focusOnDebris(debris, currentIndex, geometryType);
+              showSideModal(debris.data);
               return;
             }
             currentIndex++;
@@ -614,6 +726,221 @@ function onMouseClick(event) {
     }
   }
 }
+
+function focusOnDebris(debris, instanceId, geometryType) {
+  // Store original camera state for restoration
+  if (!isZoomedIn) {
+    originalCameraPosition = camera.position.clone();
+    originalControlsTarget = controls.target.clone();
+  }
+  
+  focusedDebris = { debris, instanceId, geometryType };
+  isZoomedIn = true;
+  
+  // Hide all other debris
+  Object.entries(instancedMeshes).forEach(([type, mesh]) => {
+    if (type !== geometryType) {
+      mesh.visible = false;
+    } else {
+      // Hide all instances except the focused one
+      hideAllInstancesExcept(mesh, instanceId);
+    }
+  });
+  
+  // Calculate current position from the instanced mesh
+  const matrix = new THREE.Matrix4();
+  const instancedMesh = instancedMeshes[geometryType];
+  instancedMesh.getMatrixAt(instanceId, matrix);
+  
+  // Extract position from the matrix
+  const debrisPos = new THREE.Vector3();
+  matrix.decompose(debrisPos, new THREE.Quaternion(), new THREE.Vector3());
+  
+  // Calculate camera position for close-up view
+  const distance = 0.05; // Very close distance
+  const offset = new THREE.Vector3(distance, distance * 0.5, distance);
+  const newCameraPos = debrisPos.clone().add(offset);
+  
+  // Smooth camera transition
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const duration = 1500; // 1.5 seconds
+  const startTime = performance.now();
+  
+  function animateCamera(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = easeInOutCubic(progress);
+    
+    // Interpolate camera position
+    camera.position.lerpVectors(startPos, newCameraPos, easeProgress);
+    
+    // Interpolate controls target
+    controls.target.lerpVectors(startTarget, debrisPos, easeProgress);
+    controls.update();
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera);
+    }
+  }
+  
+  requestAnimationFrame(animateCamera);
+  
+  // Update UI to show zoom state
+  updateZoomUI(true);
+}
+
+function hideAllInstancesExcept(instancedMesh, keepInstanceId) {
+  const tempObject = new THREE.Object3D();
+  const hiddenScale = new THREE.Vector3(0, 0, 0);
+  const matrix = new THREE.Matrix4();
+  
+  for (let i = 0; i < instancedMesh.count; i++) {
+    if (i !== keepInstanceId) {
+      // Scale instance to 0 to hide it
+      instancedMesh.getMatrixAt(i, matrix);
+      tempObject.position.setFromMatrixPosition(matrix);
+      tempObject.rotation.setFromRotationMatrix(matrix);
+      tempObject.scale.copy(hiddenScale);
+      tempObject.updateMatrix();
+      instancedMesh.setMatrixAt(i, tempObject.matrix);
+    }
+  }
+  
+  instancedMesh.instanceMatrix.needsUpdate = true;
+}
+
+function restoreAllInstances() {
+  if (!focusedDebris) return;
+  
+  // Restore all debris visibility and scales
+  Object.entries(instancedMeshes).forEach(([type, mesh]) => {
+    mesh.visible = true;
+    
+    // Restore original matrices for all instances
+    let instanceIndex = 0;
+    const matrix = new THREE.Matrix4();
+    
+    debrisInstanceData.forEach(debris => {
+      if (debris.geometryType === type) {
+        // Restore original scale and transformation
+        matrix.makeRotationFromEuler(new THREE.Euler(
+          debris.rotation.x,
+          debris.rotation.y,
+          debris.rotation.z
+        ));
+        matrix.scale(new THREE.Vector3(debris.size, debris.size, debris.size));
+        matrix.setPosition(debris.position.x, debris.position.y, debris.position.z);
+        
+        mesh.setMatrixAt(instanceIndex, matrix);
+        instanceIndex++;
+      }
+    });
+    
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+}
+
+function resetCameraView() {
+  if (!isZoomedIn || !originalCameraPosition || !originalControlsTarget) return;
+  
+  // Smooth transition back to original view
+  const startPos = camera.position.clone();
+  const startTarget = controls.target.clone();
+  const duration = 1500;
+  const startTime = performance.now();
+  
+  function animateCamera(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easeProgress = easeInOutCubic(progress);
+    
+    camera.position.lerpVectors(startPos, originalCameraPosition, easeProgress);
+    controls.target.lerpVectors(startTarget, originalControlsTarget, easeProgress);
+    controls.update();
+    
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera);
+    } else {
+      // Animation complete, restore all debris
+      restoreAllInstances();
+      focusedDebris = null;
+      isZoomedIn = false;
+      updateZoomUI(false);
+      hideSideModal(); // Ensure modal is closed
+    }
+  }
+  
+  requestAnimationFrame(animateCamera);
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+}
+
+function updateZoomUI(zoomed) {
+  let resetButton = document.getElementById('resetViewButton');
+  
+  if (zoomed && !resetButton) {
+    // Create reset button
+    resetButton = document.createElement('button');
+    resetButton.id = 'resetViewButton';
+    resetButton.innerHTML = '🔍 Reset View';
+    resetButton.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 420px;
+      z-index: 999;
+      background: rgba(76, 175, 80, 0.9);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+    `;
+    
+    resetButton.addEventListener('mouseenter', () => {
+      resetButton.style.background = 'rgba(76, 175, 80, 1)';
+      resetButton.style.transform = 'scale(1.05)';
+    });
+    
+    resetButton.addEventListener('mouseleave', () => {
+      resetButton.style.background = 'rgba(76, 175, 80, 0.9)';
+      resetButton.style.transform = 'scale(1)';
+    });
+    
+    resetButton.addEventListener('click', () => {
+      resetCameraView();
+      hideSideModal();
+    });
+    
+    document.body.appendChild(resetButton);
+  } else if (!zoomed && resetButton) {
+    // Remove reset button
+    resetButton.remove();
+  }
+}
+
+// Handle keyboard shortcuts for better UX
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    if (isZoomedIn && isModalOpen) {
+      resetCameraView();
+      hideSideModal();
+    }
+  }
+  if (event.key === 'r' || event.key === 'R') {
+    if (isZoomedIn && isModalOpen) {
+      resetCameraView();
+      hideSideModal();
+    }
+  }
+});
 
 window.addEventListener('click', onMouseClick);
 
@@ -870,9 +1197,9 @@ function animate() {
   
   frameCount++;
   const now = performance.now();
-  animationTime = now * 0.001; // Tempo em segundos
+  animationTime = now * 0.001; // Time in seconds
   
-  // Atualizar FPS e estatísticas apenas a cada segundo
+  // Update FPS and stats once per second
   if (now - lastTime >= 1000) {
     fps = Math.round((frameCount * 1000) / (now - lastTime));
     const fpsEl = document.getElementById('fps');
@@ -880,11 +1207,11 @@ function animate() {
     frameCount = 0;
     lastTime = now;
     
-    // Resetar estatísticas do renderer periodicamente
+    // Reset renderer stats periodically
     renderer.info.reset();
   }
 
-  // Atualizar uniforms dos shaders customizados
+  // Update custom shader uniforms
   if (spaceSkyMaterial && spaceSkyMaterial.uniforms) {
     spaceSkyMaterial.uniforms.time.value = animationTime;
     spaceSkyMaterial.uniforms.cameraPosition.value.copy(camera.position);
@@ -897,24 +1224,29 @@ function animate() {
   if (sunMaterial && sunMaterial.uniforms) {
     sunMaterial.uniforms.time.value = animationTime;
   }
-
-  // Rotações otimizadas (apenas objetos principais)
-  // Terra gira no sentido correto (oeste para leste) com velocidade realista
-  earth.rotation.y = Math.PI + animationTime * 0.02; // Rotação com offset para alinhar dia/noite
-  atmosphere.rotation.y = Math.PI + animationTime * 0.02; // Mesma velocidade da Terra
-  stars.rotation.y = animationTime * 0.001; // Rotação muito lenta das estrelas
+/*
+  // Corrected rotations with Earth's axial tilt
+  // Earth spins on its tilted axis
+  earth.rotation.y = Math.PI + animationTime * 0.02;
   
-  // Rotação dos debris alinhada com a Terra (mesmo sentido)
+  // Atmosphere rotates with Earth
+  atmosphere.rotation.y = Math.PI + animationTime * 0.02;
+  
+  // Stars rotate slowly (background)
+  stars.rotation.y = animationTime * 0.001;
+  */
+  // Debris rotation - maintain their individual orbits while respecting Earth's tilt
   Object.values(instancedMeshes).forEach(mesh => {
     if (mesh) {
-      // Rotação no mesmo sentido da Terra (positivo)
-      mesh.rotation.y = animationTime * 0.025; // Ligeiramente mais rápido que a Terra
-      mesh.rotation.x = animationTime * 0.005; // Rotação sutil no eixo X
-      mesh.rotation.z = animationTime * 0.003; // Rotação sutil no eixo Z
+      // Apply the same axial tilt to debris
+      mesh.rotation.z = EARTH_AXIAL_TILT;
+      // Continue with normal rotation
+      //mesh.rotation.y = animationTime * 0.02;
+      //mesh.rotation.x = animationTime * 0.02;
     }
   });
 
-  // Atualizar controles apenas se necessário
+  // Update controls if needed
   if (controls.enableDamping) {
     controls.update();
   }

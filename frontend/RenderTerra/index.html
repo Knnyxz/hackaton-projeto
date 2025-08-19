@@ -20,6 +20,7 @@
       border-radius: 8px;
       z-index: 100;
       backdrop-filter: blur(10px);
+      max-width: 300px;
     }
     #controls button {
       margin: 5px;
@@ -36,6 +37,57 @@
     }
     #controls button.active {
       background: #ff6b6b;
+    }
+    #controls select, #controls input {
+      margin: 5px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid #666;
+      background: rgba(255, 255, 255, 0.9);
+    }
+    .filter-section {
+      margin-top: 15px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .filter-section h4 {
+      margin: 5px 0;
+      font-size: 14px;
+      color: #4CAF50;
+    }
+    #filterList {
+      max-height: 150px;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      padding: 5px;
+      margin-top: 5px;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      padding: 2px 0;
+      font-size: 12px;
+    }
+    .filter-item input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    .filter-item .count {
+      margin-left: auto;
+      color: #aaa;
+      font-size: 10px;
+    }
+    #searchFilter {
+      width: 100%;
+      margin-bottom: 10px;
+    }
+    .filter-actions {
+      margin-top: 10px;
+    }
+    .filter-actions button {
+      font-size: 12px;
+      padding: 5px 10px;
+      margin: 2px;
     }
     #info {
       position: absolute;
@@ -83,6 +135,18 @@
         <option value="20000">20,000 objects</option>
       </select>
     </div>
+    
+    <div class="filter-section">
+      <h4 id="filterTitle">Filter by Country</h4>
+      <input type="text" id="searchFilter" placeholder="Search..." />
+      <div class="filter-actions">
+        <button id="selectAllFilter">All</button>
+        <button id="selectNoneFilter">None</button>
+        <button id="resetFilter">Reset</button>
+      </div>
+      <div id="filterList"></div>
+    </div>
+    
     <div style="margin-top: 10px; font-size: 12px;">
       <div>Size represents object dimensions</div>
       <div>Mouse: Rotate | Wheel: Zoom</div>
@@ -90,6 +154,7 @@
   </div>
   <div id="info">
     <div>Debris Count: <span id="debrisCount">0</span></div>
+    <div>Visible: <span id="visibleCount">0</span></div>
     <div>FPS: <span id="fps">--</span></div>
   </div>
   <script type="module" src="./main.js">
