@@ -856,11 +856,32 @@ function onMouseClick(event) {
   
   raycaster.setFromCamera(mouse, camera);
   
-  const instancedMeshArray = Object.values(instancedMeshes);
-  const intersects = raycaster.intersectObjects(instancedMeshArray);
+  // First check if we hit Earth
+  const earthIntersects = raycaster.intersectObject(earth);
   
-  if (intersects.length > 0) {
-    const intersect = intersects[0];
+  // Then check debris intersections
+  const instancedMeshArray = Object.values(instancedMeshes);
+  const debrisIntersects = raycaster.intersectObjects(instancedMeshArray);
+  
+  // If we hit both Earth and debris, only allow interaction if debris is closer
+  if (earthIntersects.length > 0 && debrisIntersects.length > 0) {
+    const earthDistance = earthIntersects[0].distance;
+    const debrisDistance = debrisIntersects[0].distance;
+    
+    // If Earth is closer, don't interact with debris
+    if (earthDistance < debrisDistance) {
+      return;
+    }
+  }
+  
+  // If we only hit Earth or debris is behind Earth, return
+  if (earthIntersects.length > 0 && debrisIntersects.length === 0) {
+    return;
+  }
+  
+  // Process debris interaction (existing code)
+  if (debrisIntersects.length > 0) {
+    const intersect = debrisIntersects[0];
     const instanceId = intersect.instanceId;
     
     if (instanceId !== undefined) {
@@ -1142,12 +1163,25 @@ async function loadDebris() {
   
   try {
     console.log('Loading debris data...');
-    const res = await fetch('http://localhost:3000/space_debris');
+    
+    // First get the total count
+    const countRes = await fetch('http://localhost:3000/space_debris/count');
+    const countData = await countRes.json();
+    const totalCount = countData.count;
+    
+    console.log(`Total debris in database: ${totalCount}`);
+    
+    // Calculate how many to actually load based on settings
+    const maxCount = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY].maxDebris;
+    const requestCount = Math.min(PERFORMANCE_SETTINGS.CURRENT_COUNT, maxCount, totalCount);
+    
+    // Load the debris with limit
+    const res = await fetch(`http://localhost:3000/space_debris?limit=${requestCount}`);
     const raw = await res.json();
     
+    // Filter for valid TLE data
     const validDebris = raw.filter(d => d.tle1 && d.tle2);
-    const maxCount = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY].maxDebris;
-    debrisData = validDebris.slice(0, Math.min(PERFORMANCE_SETTINGS.CURRENT_COUNT, maxCount));
+    debrisData = validDebris;
     
     console.log(`Processing ${debrisData.length} debris objects with instancing`);
 
@@ -1288,19 +1322,154 @@ async function loadDebris() {
     updateFilterUI();
     applyFilters();
 
+    // Update UI with counts
     const debrisCountEl = document.getElementById('debrisCount');
     if (debrisCountEl) debrisCountEl.textContent = debrisData.length;
+    
+    const totalCountEl = document.getElementById('totalCount');
+    if (totalCountEl) totalCountEl.textContent = totalCount;
 
     console.log(`Created ${validPositions} valid positions, ${debrisData.length - validPositions} fallback positions using instancing`);
     
   } catch (error) {
     console.error('Error loading debris:', error);
+    
+    // Fallback to old endpoint if new one fails
+    try {
+      console.log('Trying fallback endpoint...');
+      const res = await fetch('http://localhost:3000/space_debris');
+      const raw = await res.json();
+      
+      const validDebris = raw.filter(d => d.tle1 && d.tle2);
+      const maxCount = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY].maxDebris;
+      debrisData = validDebris.slice(0, Math.min(PERFORMANCE_SETTINGS.CURRENT_COUNT, maxCount));
+      
+      // Continue with existing processing logic...
+      console.log(`Fallback: Processing ${debrisData.length} debris objects`);
+      
+    } catch (fallbackError) {
+      console.error('Fallback failed:', fallbackError);
+    }
   } finally {
     isLoading = false;
     const loadingEl = document.getElementById('loading');
     if (loadingEl) loadingEl.style.display = 'none';
   }
 }
+
+// Add these new functions for loading filtered data:
+
+async function loadDebrisFiltered(filters = {}) {
+  if (isLoading) return;
+  isLoading = true;
+  
+  const loadingEl = document.getElementById('loading');
+  if (loadingEl) loadingEl.style.display = 'block';
+  
+  try {
+    console.log('Loading filtered debris data...', filters);
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    const maxCount = PERFORMANCE_SETTINGS[PERFORMANCE_SETTINGS.CURRENT_QUALITY].maxDebris;
+    const requestCount = Math.min(PERFORMANCE_SETTINGS.CURRENT_COUNT, maxCount);
+    
+    params.append('limit', requestCount);
+    
+    if (filters.country) params.append('country', filters.country);
+    if (filters.company) params.append('company', filters.company);
+    if (filters.type !== null && filters.type !== undefined) params.append('type', filters.type);
+    if (filters.minMass) params.append('minMass', filters.minMass);
+    if (filters.maxMass) params.append('maxMass', filters.maxMass);
+    if (filters.search) params.append('search', filters.search);
+    
+    const res = await fetch(`http://localhost:3000/space_debris/filtered?${params}`);
+    const raw = await res.json();
+    
+    const validDebris = raw.filter(d => d.tle1 && d.tle2);
+    debrisData = validDebris;
+    
+    console.log(`Processing ${debrisData.length} filtered debris objects`);
+    
+    // Continue with existing processing logic...
+    // (Same as in loadDebris function)
+    
+  } catch (error) {
+    console.error('Error loading filtered debris:', error);
+  } finally {
+    isLoading = false;
+    const loadingEl = document.getElementById('loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+  }
+}
+
+// Add function to load statistics
+async function loadDebrisStatistics() {
+  try {
+    const res = await fetch('http://localhost:3000/space_debris/statistics');
+    const stats = await res.json();
+    
+    console.log('Debris statistics:', stats);
+    
+    // Update UI with statistics
+    updateStatisticsUI(stats);
+    
+    return stats;
+  } catch (error) {
+    console.error('Error loading statistics:', error);
+    return null;
+  }
+}
+
+// Add function to update statistics UI
+function updateStatisticsUI(stats) {
+  // Update total count
+  const totalCountEl = document.getElementById('totalDebrisCount');
+  if (totalCountEl) totalCountEl.textContent = stats.totalCount?.toLocaleString() || '0';
+  
+  // Update average mass
+  const avgMassEl = document.getElementById('avgMass');
+  if (avgMassEl) avgMassEl.textContent = stats.avgMass ? `${stats.avgMass} kg` : 'N/A';
+  
+  // Update total mass
+  const totalMassEl = document.getElementById('totalMass');
+  if (totalMassEl) totalMassEl.textContent = stats.totalMass ? `${(stats.totalMass / 1000).toFixed(1)} tonnes` : 'N/A';
+  
+  // Update type distribution
+  if (stats.typeDistribution) {
+    const typeList = document.getElementById('typeDistribution');
+    if (typeList) {
+      typeList.innerHTML = stats.typeDistribution
+        .slice(0, 5)
+        .map(item => `<li>${getObjectTypeName(item._id)}: ${item.count}</li>`)
+        .join('');
+    }
+  }
+  
+  // Update country distribution
+  if (stats.countryDistribution) {
+    const countryList = document.getElementById('countryDistribution');
+    if (countryList) {
+      countryList.innerHTML = stats.countryDistribution
+        .slice(0, 5)
+        .map(item => `<li>${item._id}: ${item.count}</li>`)
+        .join('');
+    }
+  }
+}
+
+// Helper function to get readable object type names
+function getObjectTypeName(type) {
+  switch(type) {
+    case 1: return 'Payload';
+    case 2: return 'Rocket Body';
+    case 3: return 'Debris';
+    default: return 'Unknown';
+  }
+}
+
+// Load statistics on initialization
+loadDebrisStatistics();
 
 function updateColors(colorMode) {
   if (isLoading) return;

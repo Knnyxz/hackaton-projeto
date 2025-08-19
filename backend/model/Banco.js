@@ -101,7 +101,7 @@ class Banco {
                 await collection.bulkWrite(operations);
                 await metadataCollection.updateOne(
                     { type: 'debris' },
-                    { $set: { lastUpdated: new Date() } },
+                    { $set: { lastUpdated: new Date(), totalCount: operations.length } },
                     { upsert: true }
                 );
                 console.log(`Updated ${operations.length} space debris records`);
@@ -116,16 +116,176 @@ class Banco {
         }
     }
 
-    static async getSpaceDebris() {
+    static async getSpaceDebrisCount() {
         const db = await Banco.connectToDatabase();
         const collection = db.collection('space_debris');
         
         if (await Banco.needsUpdate()) {
             console.log('Space debris data is outdated, updating...');
-            await Banco.updateSpaceDebris(); // Added await here
+            await Banco.updateSpaceDebris();
         }
         
-        return collection.find({}).toArray();
+        return collection.countDocuments({});
+    }
+
+    static async getSpaceDebris(limit = null, offset = 0) {
+        const db = await Banco.connectToDatabase();
+        const collection = db.collection('space_debris');
+        
+        if (await Banco.needsUpdate()) {
+            console.log('Space debris data is outdated, updating...');
+            await Banco.updateSpaceDebris();
+        }
+        
+        let query = collection.find({});
+        
+        if (offset > 0) {
+            query = query.skip(offset);
+        }
+        
+        if (limit) {
+            query = query.limit(limit);
+        }
+        
+        return query.toArray();
+    }
+
+    // New method for getting debris with filtering capabilities
+    static async getSpaceDebrisFiltered(options = {}) {
+        const db = await Banco.connectToDatabase();
+        const collection = db.collection('space_debris');
+        
+        if (await Banco.needsUpdate()) {
+            console.log('Space debris data is outdated, updating...');
+            await Banco.updateSpaceDebris();
+        }
+
+        const {
+            limit = null,
+            offset = 0,
+            country = null,
+            company = null,
+            type = null,
+            minMass = null,
+            maxMass = null,
+            search = null
+        } = options;
+
+        // Build filter query
+        const filter = {};
+        
+        if (country) {
+            filter.country = country;
+        }
+        
+        if (company) {
+            filter.company = company;
+        }
+        
+        if (type !== null) {
+            filter.type = type;
+        }
+        
+        if (minMass !== null || maxMass !== null) {
+            filter.massKg = {};
+            if (minMass !== null) filter.massKg.$gte = minMass;
+            if (maxMass !== null) filter.massKg.$lte = maxMass;
+        }
+        
+        if (search) {
+            filter.$or = [
+                { objectName: { $regex: search, $options: 'i' } },
+                { altName: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        let query = collection.find(filter);
+        
+        if (offset > 0) {
+            query = query.skip(offset);
+        }
+        
+        if (limit) {
+            query = query.limit(limit);
+        }
+        
+        return query.toArray();
+    }
+
+    // Get unique countries for filtering UI
+    static async getUniqueCountries() {
+        const db = await Banco.connectToDatabase();
+        const collection = db.collection('space_debris');
+        
+        return collection.distinct('country', {});
+    }
+
+    // Get unique companies for filtering UI
+    static async getUniqueCompanies() {
+        const db = await Banco.connectToDatabase();
+        const collection = db.collection('space_debris');
+        
+        return collection.distinct('company', {});
+    }
+
+    // Get statistics for dashboard
+    static async getDebrisStatistics() {
+        const db = await Banco.connectToDatabase();
+        const collection = db.collection('space_debris');
+        
+        const stats = await collection.aggregate([
+            {
+                $group: {
+                    _id: null,
+                    totalCount: { $sum: 1 },
+                    avgMass: { $avg: '$massKg' },
+                    totalMass: { $sum: '$massKg' },
+                    countByType: {
+                        $push: {
+                            type: '$type',
+                            country: '$country',
+                            company: '$company'
+                        }
+                    }
+                }
+            },
+            {
+                $project: {
+                    _id: 0,
+                    totalCount: 1,
+                    avgMass: { $round: ['$avgMass', 2] },
+                    totalMass: { $round: ['$totalMass', 2] },
+                    countByType: 1
+                }
+            }
+        ]).toArray();
+
+        // Get type distribution
+        const typeStats = await collection.aggregate([
+            { $group: { _id: '$type', count: { $sum: 1 } } },
+            { $sort: { count: -1 } }
+        ]).toArray();
+
+        // Get country distribution
+        const countryStats = await collection.aggregate([
+            { $group: { _id: '$country', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]).toArray();
+
+        // Get company distribution
+        const companyStats = await collection.aggregate([
+            { $group: { _id: '$company', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 10 }
+        ]).toArray();
+
+        return {
+            ...stats[0],
+            typeDistribution: typeStats,
+            countryDistribution: countryStats,
+            companyDistribution: companyStats
+        };
     }
 }
 
