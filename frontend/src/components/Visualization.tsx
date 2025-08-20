@@ -1,9 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Monitor, MousePointer2, Zap, Eye, Maximize, Minimize, Satellite, MapPin, Globe, Database } from "lucide-react";
+import { Monitor, MousePointer2, Zap, Eye, Maximize, Minimize, Satellite, MapPin, Globe, Database, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useScrollReveal, useStaggeredScrollReveal } from '@/hooks/useScrollReveal';
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 
 interface SpaceDebris {
   _id: string;
@@ -47,9 +50,62 @@ const Visualization = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [statistics, setStatistics] = useState<any>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [countries, setCountries] = useState<string[]>([]);
+  const [companies, setCompanies] = useState<string[]>([]);
+  const [selectedCountry, setSelectedCountry] = useState<string>('');
+  const [selectedCompany, setSelectedCompany] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 12;
 
   // Fetch space debris data from backend
+  const fetchSpaceDebris = async () => {
+    try {
+      setLoading(true);
+      const offset = (currentPage - 1) * itemsPerPage;
+      let url = `http://localhost:3000/space_debris/filtered?limit=${itemsPerPage}&offset=${offset}`;
+      
+      if (selectedCountry) url += `&country=${encodeURIComponent(selectedCountry)}`;
+      if (selectedCompany) url += `&company=${encodeURIComponent(selectedCompany)}`;
+      if (searchTerm) url += `&search=${encodeURIComponent(searchTerm)}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      setSpaceDebris(data);
+      
+      // Fetch total count for pagination
+      const countResponse = await fetch('http://localhost:3000/space_debris/count');
+      const countData = await countResponse.json();
+      setTotalCount(countData.count);
+    } catch (error) {
+      console.error('Error fetching space debris:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/space_debris/countries');
+        const data = await response.json();
+        setCountries(data);
+      } catch (error) {
+        console.error('Error fetching countries:', error);
+      }
+    };
+    
+    const fetchCompanies = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/space_debris/companies');
+        const data = await response.json();
+        setCompanies(data);
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      }
+    };
+
     const fetchStatistics = async () => {
       try {
         setStatsLoading(true);
@@ -63,8 +119,15 @@ const Visualization = () => {
       }
     };
 
+    fetchCountries();
+    fetchCompanies();
     fetchStatistics();
   }, []);
+  
+  // Fetch debris when filters or pagination change
+  useEffect(() => {
+    fetchSpaceDebris();
+  }, [currentPage, selectedCountry, selectedCompany, searchTerm]);
 
   const controls = [
     {
@@ -241,6 +304,87 @@ const Visualization = () => {
             <p className="text-muted-foreground">Informações dos objetos rastreados em órbita</p>
           </div>
 
+          {/* Filters and Search */}
+          <div className="mb-8">
+            <Card className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="w-5 h-5 text-accent" />
+                <h4 className="text-lg font-semibold">Filtros e Busca</h4>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por nome..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Country Filter */}
+                <Select value={selectedCountry || 'all'} onValueChange={(value) => {
+                  setSelectedCountry(value === 'all' ? '' : value);
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar país" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os países</SelectItem>
+                    {countries.map((country) => (
+                      <SelectItem key={country} value={country}>
+                        {country}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Company Filter */}
+                <Select value={selectedCompany || 'all'} onValueChange={(value) => {
+                  setSelectedCompany(value === 'all' ? '' : value);
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecionar empresa" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as empresas</SelectItem>
+                    {companies.map((company) => (
+                      <SelectItem key={company} value={company}>
+                        {company}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Clear Filters Button */}
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedCountry('');
+                    setSelectedCompany('');
+                    setCurrentPage(1);
+                  }}
+                  className="w-full"
+                >
+                  Limpar Filtros
+                </Button>
+              </div>
+              
+              {/* Results Info */}
+              <div className="mt-4 text-sm text-muted-foreground text-center">
+                Mostrando {spaceDebris.length} de {totalCount.toLocaleString()} objetos
+              </div>
+            </Card>
+          </div>
+
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
@@ -254,7 +398,7 @@ const Visualization = () => {
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                {spaceDebris.slice(0, 6).map((debris) => (
+                {spaceDebris.map((debris) => (
                   <Card 
                     key={debris._id} 
                     className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:border-accent"
@@ -287,6 +431,39 @@ const Visualization = () => {
                   </Card>
                 ))}
               </div>
+              
+              {/* Pagination */}
+              {totalCount > itemsPerPage && (
+                <div className="flex justify-center items-center gap-4 mt-8">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
+                  </Button>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Página {currentPage} de {Math.ceil(totalCount / itemsPerPage)}
+                    </span>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(totalCount / itemsPerPage)))}
+                    disabled={currentPage === Math.ceil(totalCount / itemsPerPage)}
+                    className="flex items-center gap-2"
+                  >
+                    Próxima
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -397,14 +574,14 @@ const Visualization = () => {
         
         <Card className="text-center p-6">
           <div className="text-3xl font-bold text-accent mb-2">
-            {statistics.byType?.find((t: any) => t.type === 'Satellite')?.count.toLocaleString() || '0'}
+            {statistics.byType?.find((t: any) => t._id === 1)?.count.toLocaleString() || '0'}
           </div>
           <p className="text-muted-foreground">Satélites</p>
         </Card>
         
         <Card className="text-center p-6">
           <div className="text-3xl font-bold text-accent mb-2">
-            {statistics.byType?.find((t: any) => t.type === 'Debris')?.count.toLocaleString() || '0'}
+            {statistics.byType?.find((t: any) => t._id === 3)?.count.toLocaleString() || '0'}
           </div>
           <p className="text-muted-foreground">Detritos</p>
         </Card>
@@ -430,9 +607,10 @@ const Visualization = () => {
             {statistics.orbitDistribution?.map((orbit: any) => (
               <div key={orbit._id} className="flex justify-between items-center">
                 <span className="text-muted-foreground">
-                  {orbit._id === 0 ? 'LEO (Baixa)' : 
-                   orbit._id === 1 ? 'MEO (Média)' : 
-                   orbit._id === 2 ? 'GEO (Alta)' : 'Desconhecido'}
+                  {orbit.orbitType === 'LEO' ? 'LEO (Órbita Baixa)' : 
+                   orbit.orbitType === 'MEO' ? 'MEO (Órbita Média)' : 
+                   orbit.orbitType === 'GEO' ? 'GEO (Órbita Geoestacionária)' : 
+                   orbit.orbitType || 'Desconhecida'}
                 </span>
                 <span className="font-medium">{orbit.count.toLocaleString()}</span>
               </div>
@@ -442,18 +620,21 @@ const Visualization = () => {
       </div>
 
       <Card className="p-6 mb-8">
-        <h4 className="font-semibold mb-4 text-lg">Distribuição por Tamanho</h4>
+        <h4 className="font-semibold mb-4 text-lg">Distribuição por Peso</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {statistics.sizeDistribution?.map((size: any, index: number) => (
             <div key={index} className="text-center">
               <div className="text-xl font-bold text-accent mb-1">{size.count.toLocaleString()}</div>
               <div className="text-sm text-muted-foreground">
                 {size._id === 0 ? '< 100kg' : 
-                 size._id === 1 ? '100-500kg' : 
-                 size._id === 2 ? '500-1000kg' : 
-                 size._id === 3 ? '1-5t' : 
-                 size._id === 4 ? '5-10t' : 
+                 size._id === 100 ? '100-500kg' : 
+                 size._id === 500 ? '500kg-1t' : 
+                 size._id === 1000 ? '1-5t' : 
+                 size._id === 5000 ? '5-10t' : 
                  '> 10t'}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Média: {size.avgMass ? `${Math.round(size.avgMass)}kg` : 'N/A'}
               </div>
             </div>
           ))}
