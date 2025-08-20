@@ -27,7 +27,7 @@ const Footer = () => {
   const sources = [
     "Escritório do Programa de Detritos Orbitais da NASA",
     "Escritório de Detritos Espaciais da ESA",
-    "Rede de Vigilância Espacial dos EUA",
+    "Rede de Vigilância Espacial da NASA",
     "Diretrizes de Mitigação de Detritos Espaciais do IADC"
   ];
 
@@ -35,8 +35,7 @@ const Footer = () => {
     <footer className="py-16 px-6 relative overflow-hidden bg-primary/10 border-t border-border/20">
       {/* Animated Background */}
       <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-0 left-0 w-40 h-40 bg-accent rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-32 h-32 bg-highlight rounded-full blur-3xl animate-pulse animation-delay-1000" />
+        
       </div>
 
       <div className={`max-w-7xl mx-auto relative z-10 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>

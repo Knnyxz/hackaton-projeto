@@ -45,7 +45,7 @@ const Education = () => {
     <section ref={mainRef} id="education" className="py-24 px-6 relative overflow-hidden">
       {/* Animated Background Pattern */}
       <div className="absolute inset-0 opacity-10">
-        <div className="absolute bottom-20 right-20 w-40 h-40 bg-highlight rounded-full blur-3xl animate-pulse animation-delay-1000" />
+        
         <div className="absolute top-1/2 left-1/2 w-24 h-24 bg-primary rounded-full blur-2xl animate-pulse animation-delay-500" />
       </div>
 
@@ -202,7 +202,7 @@ const Education = () => {
                     </div>
                   </div>
                   <p className="text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
-                    A Rede de Vigilância Espacial dos EUA (SSN) opera uma rede global de radares terrestres e telescópios ópticos 
+                    A Rede de Vigilância Espacial da NASA opera uma rede global de radares terrestres e telescópios ópticos 
                     para rastrear detritos espaciais. Os dados são mantidos no Catálogo de Objetos Espaciais, que contém informações orbitais 
                     para mais de 16.308 objetos maiores que 10 centímetros.
                   </p>
