@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Monitor, MousePointer2, Zap, Eye } from "lucide-react";
+import { Monitor, MousePointer2, Zap, Eye, Maximize, Minimize } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useScrollReveal, useStaggeredScrollReveal } from '@/hooks/useScrollReveal';
 
@@ -7,7 +7,7 @@ const Visualization = () => {
   const { elementRef: mainRef, isVisible } = useScrollReveal({ threshold: 0.2 });
   const { elementRef: controlsRef, visibleItems: controlsVisible } = useStaggeredScrollReveal(4, 150);
   const { elementRef: visualRef, isVisible: visualVisible } = useScrollReveal({ threshold: 0.3 });
-
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const controls = [
     {
@@ -32,10 +32,48 @@ const Visualization = () => {
     }
   ];
 
+  // Fullscreen functionality
+  const toggleFullscreen = () => {
+    const visualContainer = document.getElementById('visualization-container');
+    
+    if (!isFullscreen) {
+      if (visualContainer.requestFullscreen) {
+        visualContainer.requestFullscreen();
+      } else if (visualContainer.webkitRequestFullscreen) {
+        visualContainer.webkitRequestFullscreen();
+      } else if (visualContainer.msRequestFullscreen) {
+        visualContainer.msRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    }
+  };
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   return (
     <section ref={mainRef} id="visualization" className="py-24 px-6 relative overflow-hidden">
-
-      
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Section Header com Fade In */}
         <div className={`text-center mb-16 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
@@ -98,70 +136,57 @@ const Visualization = () => {
           visualVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
         }`}>
           <Card className="border-gradient glass-effect-enhanced p-0 overflow-hidden hover:glow-cyan transition-all duration-500 group">
-            <div className="aspect-video bg-gradient-to-br from-primary via-secondary to-primary/80 relative">
-              {/* Animated Background Grid */}
-              <div className="absolute inset-0 opacity-20" style={{
-                backgroundImage: `linear-gradient(hsl(var(--accent) / 0.1) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--accent) / 0.1) 1px, transparent 1px)`,
-                backgroundSize: '50px 50px'
-              }} />
-              
-              {/* Central Content */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center relative">
-                  <div className="relative mb-6">
-                    <Monitor className="w-20 h-20 text-accent mx-auto animate-glow-pulse" />
-                    <div className="absolute inset-0 blur-md opacity-50">
-                      <Monitor className="w-20 h-20 text-accent mx-auto" />
-                    </div>
-                  </div>
-                  <h3 className="text-3xl font-bold text-gradient-aurora mb-4">
-                    Visualização 3D em Breve
-                  </h3>
-                  <p className="text-muted-foreground text-lg">
-                    A visualização interativa de lixo espacial será incorporada aqui
-                  </p>
-                </div>
-              </div>
-              
-              {/* Enhanced Animated particles */}
-              <div className="absolute inset-0 overflow-hidden">
-                {[...Array(25)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute rounded-full animate-orbit glow-cyan"
-                    style={{
-                      width: `${Math.random() * 3 + 1}px`,
-                      height: `${Math.random() * 3 + 1}px`,
-                      left: `${35 + Math.random() * 30}%`,
-                      top: `${35 + Math.random() * 30}%`,
-                      animationDelay: `${Math.random() * 20}s`,
-                      animationDuration: `${15 + Math.random() * 10}s`,
-                      background: i % 3 === 0 ? 'hsl(var(--accent))' : i % 3 === 1 ? 'hsl(var(--highlight))' : 'hsl(var(--destructive))',
-                      boxShadow: `0 0 ${Math.random() * 15 + 5}px currentColor`,
-                    }}
-                  />
-                ))}
-              </div>
+            <div 
+              id="visualization-container"
+              className={`relative ${isFullscreen ? 'h-screen' : 'aspect-video'} bg-gradient-to-br from-primary via-secondary to-primary/80`}
+            >
+              {/* Fullscreen Button */}
+              <button
+                onClick={toggleFullscreen}
+                className="absolute top-4 right-4 z-50 p-2 bg-black/50 text-white rounded-lg hover:bg-black/70 transition-all duration-300 backdrop-blur-sm border border-white/20 hover:border-white/40 group/btn"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? (
+                  <Minimize className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                ) : (
+                  <Maximize className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                )}
+              </button>
 
-              {/* Floating Data Points */}
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={`data-${i}`}
-                  className="absolute text-xs font-mono text-accent/60 animate-pulse"
-                  style={{
-                    left: `${10 + Math.random() * 80}%`,
-                    top: `${10 + Math.random() * 80}%`,
-                    animationDelay: `${Math.random() * 3}s`,
-                  }}
-                >
-                  {Math.floor(Math.random() * 9999)}
-                </div>
-              ))}
+              {/* Iframe that fills the container */}
+              <iframe 
+                src="../../../RenderTerra/index.html"
+                title="3D Space Debris Visualization"
+                className="w-full h-full border-0"
+                allow="fullscreen"
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%'
+                }}
+              />
             </div>
           </Card>
-          
         </div>
       </div>
+
+      {/* Fullscreen styles */}
+      <style jsx>{`
+        #visualization-container:fullscreen {
+          background: #000;
+        }
+        #visualization-container:-webkit-full-screen {
+          background: #000;
+        }
+        #visualization-container:-moz-full-screen {
+          background: #000;
+        }
+        #visualization-container:-ms-fullscreen {
+          background: #000;
+        }
+      `}</style>
     </section>
   );
 };

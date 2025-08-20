@@ -21,6 +21,7 @@ const PERFORMANCE_SETTINGS = {
   FRUSTUM_CULLING: true
 };
 
+
 const scene = new THREE.Scene();
 
 // Shaders customizados para fundo espacial realista
@@ -80,13 +81,23 @@ const spaceFragmentShader = `
   }
 `;
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.01, 1000);
+function getCanvasSize() {
+  // Get the actual container size (works in iframe)
+  const container = document.body;
+  return {
+    width: container.clientWidth || window.innerWidth,
+    height: container.clientHeight || window.innerHeight
+  };
+}
+
+const canvasSize = getCanvasSize();
+const camera = new THREE.PerspectiveCamera(75, canvasSize.width / canvasSize.height, 0.01, 1000);
 const renderer = new THREE.WebGLRenderer({ 
   antialias: window.devicePixelRatio <= 1,
   powerPreference: "high-performance",
   logarithmicDepthBuffer: true
 });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(canvasSize.width, canvasSize.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.sortObjects = false;
 renderer.info.autoReset = false;
@@ -728,11 +739,14 @@ function updateFilterStats() {
     selectedCountEl.textContent = filteringSystem.selectedFilters.size;
   }
   
+  if (visibleObjectsEl) {
+    visibleObjectsEl.textContent = getVisibleDebrisCount();
+  }
 }
 
 function getVisibleDebrisCount() {
   if (filteringSystem.selectedFilters.size === 0) {
-    return debrisInstanceData.length;
+    return 0; // No debris visible when no filters are selected
   }
   
   return debrisInstanceData.filter(debris => {
@@ -767,14 +781,6 @@ function buildFilterData() {
 }
 
 function applyFilters() {
-  if (filteringSystem.selectedFilters.size === 0) {
-    // Show all debris when no filters selected
-    Object.values(instancedMeshes).forEach(mesh => {
-      mesh.visible = true;
-    });
-    return;
-  }
-  
   filteringSystem.isFiltering = true;
   const tempObject = new THREE.Object3D();
   const hiddenScale = new THREE.Vector3(0, 0, 0);
@@ -793,7 +799,10 @@ function applyFilters() {
         const category = filteringSystem.currentMode === 'country' 
           ? debris.data.country 
           : debris.data.company;
-        const isVisible = filteringSystem.selectedFilters.has(category || 'Unknown');
+        
+        // Fixed logic: Show debris only if filters are selected AND the category matches
+        const isVisible = filteringSystem.selectedFilters.size > 0 && 
+                          filteringSystem.selectedFilters.has(category || 'Unknown');
         
         // Get current matrix
         mesh.getMatrixAt(instanceIndex, matrix);
@@ -1084,48 +1093,11 @@ function easeInOutCubic(t) {
 }
 
 function updateZoomUI(zoomed) {
-  let resetButton = document.getElementById('resetViewButton');
   
-  if (zoomed && !resetButton) {
-    resetButton = document.createElement('button');
-    resetButton.id = 'resetViewButton';
-    resetButton.innerHTML = '🔍 Reset View';
-    resetButton.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 420px;
-      z-index: 999;
-      background: rgba(76, 175, 80, 0.9);
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-      transition: all 0.3s ease;
-    `;
+  if (zoomed) {
     
-    resetButton.addEventListener('mouseenter', () => {
-      resetButton.style.background = 'rgba(76, 175, 80, 1)';
-      resetButton.style.transform = 'scale(1.05)';
-    });
     
-    resetButton.addEventListener('mouseleave', () => {
-      resetButton.style.background = 'rgba(76, 175, 80, 0.9)';
-      resetButton.style.transform = 'scale(1)';
-    });
-    
-    resetButton.addEventListener('click', () => {
-      resetCameraView();
-      hideSideModal();
-    });
-    
-    document.body.appendChild(resetButton);
-  } else if (!zoomed && resetButton) {
-    resetButton.remove();
+  } else if (!zoomed) {
   }
 }
 
@@ -1625,16 +1597,55 @@ animate();
 
 // Handle window resize
 function handleResize() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+  const canvasSize = getCanvasSize();
+  const width = canvasSize.width;
+  const height = canvasSize.height;
+
+  renderer.setSize(canvasSize.width, canvasSize.height);
+  
+  console.log(`Resizing canvas to: ${width}x${height}`); // Debug log
   
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height, false);
+  
+  // Update pixel ratio if needed
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 }
+
+// Add fullscreen event listeners (add this after your existing event listeners)
+// Replace the existing resize event listener section with this:
 
 let resizeTimeout;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimeout);
-  resizeTimeout = setTimeout(handleResize, 150);
+  resizeTimeout = setTimeout(handleResize, 100);
 });
+
+// Add fullscreen change event listeners
+function handleFullscreenChange() {
+  console.log('Fullscreen state changed'); // Debug log
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(handleResize, 150); // Slightly longer delay for fullscreen
+}
+
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+// Enhanced ResizeObserver (replace the existing one)
+if (window.ResizeObserver) {
+  const resizeObserver = new ResizeObserver(entries => {
+    for (let entry of entries) {
+      if (entry.target === document.body) {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(handleResize, 100);
+      }
+    }
+  });
+  
+  resizeObserver.observe(document.body);
+  
+  // Also observe the document element for fullscreen changes
+  resizeObserver.observe(document.documentElement);
+}
