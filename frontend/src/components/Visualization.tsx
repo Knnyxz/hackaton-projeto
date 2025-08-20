@@ -238,7 +238,7 @@ const Visualization = () => {
         <div className="mt-16">
           <div className="text-center mb-8">
             <h3 className="text-3xl font-bold text-gradient-nebula mb-4">Dados de Detritos Espaciais</h3>
-            <p className="text-muted-foreground">Informações em tempo real dos objetos rastreados em órbita</p>
+            <p className="text-muted-foreground">Informações dos objetos rastreados em órbita</p>
           </div>
 
           {loading ? (
