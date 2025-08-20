@@ -2,6 +2,53 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 //from https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js
 import * as satellite from './import/satellite-6.0.1';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+
+let debrisModel = null;
+let isModelLoaded = false;
+let currentDebrisModel = null; // The currently displayed 3D model
+const fbxLoader = new FBXLoader();
+function loadDebrisModel() {
+  console.log('Loading debris 3D model...');
+  
+  fbxLoader.load(
+    './resources/models/destroco.fbx',
+    (object) => {
+      console.log('Debris model loaded successfully');
+      
+      // Store the loaded model
+      debrisModel = object.clone();
+      
+      // Configure the model
+      debrisModel.traverse((child) => {
+        if (child.isMesh) {
+          // Ensure proper materials
+          if (child.material) {
+            child.material.transparent = false;
+            child.material.opacity = 1.0;
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        }
+      });
+      
+      // Scale the model appropriately (adjust as needed)
+      debrisModel.scale.set(0.001, 0.001, 0.001);
+      
+      isModelLoaded = true;
+      console.log('3D debris model ready for use');
+    },
+    (progress) => {
+      console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+    },
+    (error) => {
+      console.error('Error loading debris model:', error);
+      console.log('Will fallback to basic geometry for zoom views');
+    }
+  );
+}
+// Initialize model loading
+loadDebrisModel();
 
 // Constants
 const EARTH_RADIUS_KM = 6371;
@@ -941,16 +988,16 @@ function focusOnDebris(debris, instanceId, geometryType) {
   focusedDebris = { debris, instanceId, geometryType };
   isZoomedIn = true;
   
-  // Hide other debris (from old code)
+  // Hide other debris (existing code)
   Object.entries(instancedMeshes).forEach(([type, mesh]) => {
     if (type !== geometryType) {
       mesh.visible = false;
     } else {
-      hideAllInstancesExcept(mesh, instanceId);
+      hideAllInstances(mesh, instanceId);
     }
   });
   
-  // Get the actual world position of the debris (from new code)
+  // Get the actual world position of the debris
   const matrix = new THREE.Matrix4();
   const instancedMesh = instancedMeshes[geometryType];
   instancedMesh.getMatrixAt(instanceId, matrix);
@@ -964,9 +1011,51 @@ function focusOnDebris(debris, instanceId, geometryType) {
   const earthTiltMatrix = new THREE.Matrix4().makeRotationZ(EARTH_AXIAL_TILT);
   debrisPos.applyMatrix4(earthTiltMatrix);
   
+  if (currentDebrisModel) {
+    scene.remove(currentDebrisModel);
+    currentDebrisModel = null;
+    console.log('Previous 3D model removed');
+  }
+  
+  // Create and display the 3D model if available
+  if (isModelLoaded && debrisModel) {
+    // Remove any existing 3D model
+    if (currentDebrisModel) {
+      scene.remove(currentDebrisModel);
+      currentDebrisModel = null;
+    }
+    
+    // Clone the loaded model
+    currentDebrisModel = debrisModel.clone();
+    
+    // Position the 3D model at the debris location
+    currentDebrisModel.position.copy(debrisPos);
+    
+    // Apply random rotation to make it more interesting
+    currentDebrisModel.rotation.x = Math.random() * Math.PI * 2;
+    currentDebrisModel.rotation.y = Math.random() * Math.PI * 2;
+    currentDebrisModel.rotation.z = Math.random() * Math.PI * 2;
+    
+    // Scale based on debris size (make it visible but realistic)
+    const modelScale = Math.max(debris.size * 0.00005, 0.00005);
+    currentDebrisModel.scale.set(modelScale, modelScale, modelScale);
+    
+    // Add animation to the model
+    currentDebrisModel.userData = {
+      rotationSpeed: {
+        x: (Math.random() - 0.6) * 0.01,
+        y: (Math.random() - 0.6) * 0.01,
+        z: (Math.random() - 0.6) * 0.01
+      }
+    };
+    
+    scene.add(currentDebrisModel);
+    console.log('3D debris model displayed at position:', debrisPos);
+  }
+  
   // Calculate appropriate zoom distance based on debris size
   const debrisSize = Math.max(debris.size, 0.001);
-  const distance = Math.max(debrisSize * 0.03, 0.1);
+  const distance = Math.max(debrisSize * 0.05, 0.2); // Increased distance for 3D model
   
   // Calculate camera position relative to debris
   const cameraDirection = camera.position.clone().sub(controls.target).normalize();
@@ -1004,23 +1093,59 @@ function focusOnDebris(debris, instanceId, geometryType) {
   updateZoomUI(true);
 }
 
-function hideAllInstancesExcept(instancedMesh, keepInstanceId) {
+function hideAllInstances(instancedMesh) {
   const tempObject = new THREE.Object3D();
   const hiddenScale = new THREE.Vector3(0, 0, 0);
   const matrix = new THREE.Matrix4();
   
   for (let i = 0; i < instancedMesh.count; i++) {
-    if (i !== keepInstanceId) {
-      instancedMesh.getMatrixAt(i, matrix);
-      tempObject.position.setFromMatrixPosition(matrix);
-      tempObject.rotation.setFromRotationMatrix(matrix);
-      tempObject.scale.copy(hiddenScale);
-      tempObject.updateMatrix();
-      instancedMesh.setMatrixAt(i, tempObject.matrix);
-    }
+    instancedMesh.getMatrixAt(i, matrix);
+    tempObject.position.setFromMatrixPosition(matrix);
+    tempObject.rotation.setFromRotationMatrix(matrix);
+    tempObject.scale.copy(hiddenScale); // Esconde TODAS as instâncias
+    tempObject.updateMatrix();
+    instancedMesh.setMatrixAt(i, tempObject.matrix);
   }
   
   instancedMesh.instanceMatrix.needsUpdate = true;
+}
+
+// Função alternativa se você quiser esconder todos os debris de uma vez
+function hideAllDebris() {
+  Object.entries(instancedMeshes).forEach(([type, mesh]) => {
+    hideAllInstances(mesh);
+  });
+}
+
+// Se você quiser também uma função para mostrar todas as instâncias novamente
+function showAllInstances(instancedMesh) {
+  const tempObject = new THREE.Object3D();
+  const matrix = new THREE.Matrix4();
+  
+  let instanceIndex = 0;
+  
+  debrisInstanceData.forEach(debris => {
+    if (debris.geometryType === getGeometryTypeForMesh(instancedMesh)) {
+      tempObject.position.set(debris.position.x, debris.position.y, debris.position.z);
+      tempObject.rotation.set(debris.rotation.x, debris.rotation.y, debris.rotation.z);
+      tempObject.scale.set(debris.size, debris.size, debris.size);
+      tempObject.updateMatrix();
+      instancedMesh.setMatrixAt(instanceIndex, tempObject.matrix);
+      instanceIndex++;
+    }
+  });
+  
+  instancedMesh.instanceMatrix.needsUpdate = true;
+}
+
+// Função auxiliar para identificar o tipo de geometria de um mesh
+function getGeometryTypeForMesh(mesh) {
+  for (const [type, meshInstance] of Object.entries(instancedMeshes)) {
+    if (meshInstance === mesh) {
+      return type;
+    }
+  }
+  return null;
 }
 
 function restoreAllInstances() {
@@ -1056,6 +1181,13 @@ function restoreAllInstances() {
 
 function resetCameraView() {
   if (!isZoomedIn || !originalCameraPosition || !originalControlsTarget) return;
+  
+  // ⭐⭐ REMOVER O MODELO 3D AO SAIR DO ZOOM ⭐⭐
+  if (currentDebrisModel) {
+    scene.remove(currentDebrisModel);
+    currentDebrisModel = null;
+    console.log('3D debris model removed');
+  }
   
   const startPos = camera.position.clone();
   const startTarget = controls.target.clone();
@@ -1563,6 +1695,13 @@ function animate() {
     lastTime = now;
     
     renderer.info.reset();
+  }
+
+  // Animate the 3D debris model if it exists
+  if (currentDebrisModel && currentDebrisModel.userData.rotationSpeed) {
+    currentDebrisModel.rotation.x += currentDebrisModel.userData.rotationSpeed.x;
+    currentDebrisModel.rotation.y += currentDebrisModel.userData.rotationSpeed.y;
+    currentDebrisModel.rotation.z += currentDebrisModel.userData.rotationSpeed.z;
   }
 
   // Update shader uniforms
