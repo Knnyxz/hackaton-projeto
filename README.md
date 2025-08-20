@@ -257,45 +257,18 @@ GET /space_debris/companies      # Empresas únicas
 
 ---
 
-## 🤝 **Contribuição**
-
-Contribuições são bem-vindas! Para contribuir:
-
-1. **Fork** o projeto
-2. Crie uma **branch** para sua feature (`git checkout -b feature/AmazingFeature`)
-3. **Commit** suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. **Push** para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um **Pull Request**
-
-### **Diretrizes de Contribuição**
-- Siga os padrões de código estabelecidos
-- Adicione testes para novas funcionalidades
-- Documente mudanças significativas
-- Mantenha commits limpos e descritivos
-
----
-
-## 📝 **Licença**
-
-Este projeto está licenciado sob a **MIT License** - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
----
-
 ## 👥 **Equipe**
 
 <div align="center">
 
 **Desenvolvido com ❤️ para conscientizar sobre os riscos do lixo espacial**
 
+ -@Knnyxz
+ -@MiguelF1505
+ -@zSgarboy
+
+
 *"O espaço é o patrimônio comum da humanidade. Protegê-lo é nossa responsabilidade coletiva."*
-
----
-
-### 🌟 **Se este projeto foi útil, considere dar uma estrela!**
-
-[![GitHub stars](https://img.shields.io/github/stars/seu-usuario/hackaton-projeto?style=social)](https://github.com/seu-usuario/hackaton-projeto/stargazers)
-
-</div>
 
 ---
 
