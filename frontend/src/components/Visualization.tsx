@@ -590,12 +590,12 @@ const Visualization = () => {
       {/* Additional statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <Card className="p-6">
-          <h4 className="font-semibold mb-4 text-lg">Distribuição por País</h4>
+          <h4 className="font-semibold mb-4 text-lg">Top 5 Empresas que Mais Lançaram Lixos Espaciais</h4>
           <div className="space-y-3">
-            {statistics.byCountry?.slice(0, 5).map((country: any) => (
-              <div key={country._id} className="flex justify-between items-center">
-                <span className="text-muted-foreground">{country._id || 'Desconhecido'}</span>
-                <span className="font-medium">{country.count.toLocaleString()}</span>
+            {statistics.byCompany?.slice(0, 5).map((company: any) => (
+              <div key={company._id} className="flex justify-between items-center">
+                <span className="text-muted-foreground">{company._id || 'Desconhecida'}</span>
+                <span className="font-medium">{company.count.toLocaleString()}</span>
               </div>
             ))}
           </div>

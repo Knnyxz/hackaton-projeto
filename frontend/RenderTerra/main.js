@@ -1699,12 +1699,12 @@ function animate() {
 
   // Rotate Earth slowly on its axis (very slow rotation) - only when not loading
   if (!isLoading) {
-    earth.rotation.y += 0.001;
+    earth.rotation.y += 0.0001;
 
     // Rotate all debris along with Earth
     Object.values(instancedMeshes).forEach(mesh => {
       if (mesh) {
-        mesh.rotation.y += 0.001; // Same rotation as Earth
+        mesh.rotation.y += 0.0001; // Same rotation as Earth
       }
     });
   }

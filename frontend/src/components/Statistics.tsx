@@ -44,19 +44,13 @@ const Statistics = () => {
     }
   ];
 
-  const altitudeData = [
-    { name: "Órbita Terrestre Baixa (LEO)", range: "200-2.000 km", percentage: 85, objects: "~29.000" },
-    { name: "Órbita Terrestre Média (MEO)", range: "2.000-35.786 km", percentage: 10, objects: "~3.400" },
-    { name: "Órbita Geoestacionária (GEO)", range: "35.786 km", percentage: 5, objects: "~1.700" }
-  ];
-
   const countries = [
-    { name: "Rússia", objects: 8200, percentage: 24 },
-    { name: "Estados Unidos", objects: 6900, percentage: 20 },
-    { name: "China", objects: 5500, percentage: 16 },
-    { name: "França", objects: 900, percentage: 3 },
-    { name: "Índia", objects: 800, percentage: 2 },
-    { name: "Outros", objects: 11700, percentage: 35 }
+    { name: "Estados Unidos", objects: 10713, percentage: 65.69 },
+    { name: "China", objects: 1132, percentage: 6.94 },
+    { name: "União Soviética", objects: 1083, percentage: 6.64 },
+    { name: "Reino Unido", objects: 779, percentage: 4.78 },
+    { name: "Russia", objects: 748, percentage: 4.59 },
+    { name: "Outros", objects: 1.853, percentage: 11.36 }
   ];
 
   return (
@@ -122,42 +116,8 @@ const Statistics = () => {
         </div>
 
         {/* Altitude and Country Distribution */}
-        <div ref={orbitsRef} className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-          <Card className={`glass-effect-enhanced border-gradient hover:glow-cyan transition-all duration-700 group relative overflow-hidden ${
-             orbitsVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'
-           }`}>
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-highlight/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            
-            <CardHeader className="relative z-10">
-              <CardTitle className="flex items-center gap-2 group-hover:text-accent transition-colors">
-                <div className="relative">
-                  <Globe className="w-5 h-5 text-accent group-hover:scale-110 transition-transform" />
-                  <div className="absolute inset-0 blur-sm opacity-50 group-hover:opacity-75 transition-opacity">
-                    <Globe className="w-5 h-5 text-accent" />
-                  </div>
-                </div>
-                Detritos por Altitude Orbital
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6 relative z-10">
-              {altitudeData.map((orbit, index) => (
-                <div key={index} className="space-y-2 group/item hover:translate-x-2 transition-transform duration-300">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium group-hover/item:text-accent transition-colors">{orbit.name}</div>
-                      <div className="text-sm text-muted-foreground group-hover/item:text-foreground transition-colors">{orbit.range}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-accent group-hover/item:scale-110 transition-transform">{orbit.objects}</div>
-                      <div className="text-sm text-muted-foreground group-hover/item:text-foreground transition-colors">{orbit.percentage}%</div>
-                    </div>
-                  </div>
-                  <Progress value={orbit.percentage} className="h-3 group-hover/item:h-4 transition-all duration-300" />
-                </div>
-              ))}
-            </CardContent>
-
-          </Card>
+        <div ref={orbitsRef} className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-16">
+          
 
           {/* Country Distribution */}
           <Card className={`glass-effect-enhanced border-gradient hover:glow-purple transition-all duration-700 group relative overflow-hidden ${
