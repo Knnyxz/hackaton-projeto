@@ -1697,6 +1697,18 @@ function animate() {
     renderer.info.reset();
   }
 
+  // Rotate Earth slowly on its axis (very slow rotation) - only when not loading
+  if (!isLoading) {
+    earth.rotation.y += 0.001;
+
+    // Rotate all debris along with Earth
+    Object.values(instancedMeshes).forEach(mesh => {
+      if (mesh) {
+        mesh.rotation.y += 0.001; // Same rotation as Earth
+      }
+    });
+  }
+
   // Animate the 3D debris model if it exists
   if (currentDebrisModel && currentDebrisModel.userData.rotationSpeed) {
     currentDebrisModel.rotation.x += currentDebrisModel.userData.rotationSpeed.x;
