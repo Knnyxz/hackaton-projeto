@@ -1,13 +1,70 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Monitor, MousePointer2, Zap, Eye, Maximize, Minimize } from "lucide-react";
+import { Monitor, MousePointer2, Zap, Eye, Maximize, Minimize, Satellite, MapPin, Globe, Database } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useScrollReveal, useStaggeredScrollReveal } from '@/hooks/useScrollReveal';
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface SpaceDebris {
+  _id: string;
+  objectName: string;
+  altName: string;
+  company: string;
+  country: string;
+  lastUpdated: string;
+  launchDate: string;
+  launchVehicle: string;
+  massKg: number;
+  shape: string | null;
+  tle1: string;
+  tle2: string;
+  type: number;
+  bus: string | null;
+  countryCode: string;
+  diameter: number;
+  dryMass: number;
+  launchMass: number;
+  launchPad: string;
+  launchSite: string;
+  length: number;
+  manufacturer: string | null;
+  payload: string | null;
+  rcs: number;
+  span: number;
+  stableDate: string;
+  status: string | null;
+  vmag: number | null;
+}
 
 const Visualization = () => {
   const { elementRef: mainRef, isVisible } = useScrollReveal({ threshold: 0.2 });
   const { elementRef: controlsRef, visibleItems: controlsVisible } = useStaggeredScrollReveal(4, 150);
   const { elementRef: visualRef, isVisible: visualVisible } = useScrollReveal({ threshold: 0.3 });
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [spaceDebris, setSpaceDebris] = useState<SpaceDebris[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDebris, setSelectedDebris] = useState<SpaceDebris | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [statistics, setStatistics] = useState<any>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  // Fetch space debris data from backend
+  useEffect(() => {
+    const fetchStatistics = async () => {
+      try {
+        setStatsLoading(true);
+        const response = await fetch('http://localhost:3000/space_debris/statistics');
+        const data = await response.json();
+        setStatistics(data);
+      } catch (error) {
+        console.error('Error fetching statistics:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchStatistics();
+  }, []);
 
   const controls = [
     {
@@ -37,11 +94,11 @@ const Visualization = () => {
     const visualContainer = document.getElementById('visualization-container');
     
     if (!isFullscreen) {
-      if (visualContainer.requestFullscreen) {
+      if (visualContainer?.requestFullscreen) {
         visualContainer.requestFullscreen();
-      } else if (visualContainer.webkitRequestFullscreen) {
+      } else if (visualContainer?.webkitRequestFullscreen) {
         visualContainer.webkitRequestFullscreen();
-      } else if (visualContainer.msRequestFullscreen) {
+      } else if (visualContainer?.msRequestFullscreen) {
         visualContainer.msRequestFullscreen();
       }
     } else {
@@ -71,6 +128,12 @@ const Visualization = () => {
       document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     };
   }, []);
+
+  // Function to handle debris selection
+  const handleDebrisSelect = (debris: SpaceDebris) => {
+    setSelectedDebris(debris);
+    setShowDetails(true);
+  };
 
   return (
     <section ref={mainRef} id="visualization" className="py-24 px-6 relative overflow-hidden">
@@ -170,10 +233,238 @@ const Visualization = () => {
             </div>
           </Card>
         </div>
+
+        {/* Space Debris Data Section */}
+        <div className="mt-16">
+          <div className="text-center mb-8">
+            <h3 className="text-3xl font-bold text-gradient-nebula mb-4">Dados de Detritos Espaciais</h3>
+            <p className="text-muted-foreground">Informações em tempo real dos objetos rastreados em órbita</p>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="p-4">
+                  <Skeleton className="h-4 w-3/4 mb-2" />
+                  <Skeleton className="h-3 w-1/2 mb-4" />
+                  <Skeleton className="h-20 w-full" />
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {spaceDebris.slice(0, 6).map((debris) => (
+                  <Card 
+                    key={debris._id} 
+                    className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:border-accent"
+                    onClick={() => handleDebrisSelect(debris)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-start">
+                        <CardTitle className="text-lg">{debris.objectName}</CardTitle>
+                        <Badge variant={debris.type === 1 ? "default" : "secondary"}>
+                          {debris.type === 1 ? "Satélite" : "Detrito"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        <div className="flex items-center text-sm">
+                          <Globe className="w-4 h-4 mr-2 text-muted-foreground" />
+                          <span>{debris.country}</span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <Database className="w-4 h-4 mr-2 text-muted-foreground" />
+                          <span>{debris.massKg} kg</span>
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <Satellite className="w-4 h-4 mr-2 text-muted-foreground" />
+                          <span className="truncate">{debris.launchDate}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Debris Detail Modal */}
+        {showDetails && selectedDebris && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-background rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <h3 className="text-2xl font-bold">{selectedDebris.objectName}</h3>
+                  <button 
+                    onClick={() => setShowDetails(false)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold mb-3">Informações Básicas</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Nome Alternativo:</span>
+                        <span>{selectedDebris.altName || "N/A"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Tipo:</span>
+                        <span>{selectedDebris.type === 1 ? "Satélite" : "Detrito"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">País:</span>
+                        <span>{selectedDebris.country}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Empresa:</span>
+                        <span>{selectedDebris.company}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-semibold mb-3">Especificações</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Massa:</span>
+                        <span>{selectedDebris.massKg} kg</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Data de Lançamento:</span>
+                        <span>{selectedDebris.launchDate}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Veículo de Lançamento:</span>
+                        <span>{selectedDebris.launchVehicle}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Local de Lançamento:</span>
+                        <span>{selectedDebris.launchSite}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <h4 className="font-semibold mb-3">Dados Técnicos</h4>
+                  <div className="bg-muted p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                    <div>{selectedDebris.tle1}</div>
+                    <div>{selectedDebris.tle2}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
+<div className="mt-16">
+  <div className="text-center mb-8">
+    <h3 className="text-3xl font-bold text-gradient-nebula mb-4">Estatísticas de Detritos Espaciais</h3>
+    <p className="text-muted-foreground">Análise detalhada dos objetos em órbita</p>
+  </div>
+
+  {statsLoading ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i} className="p-4">
+          <Skeleton className="h-6 w-3/4 mb-2" />
+          <Skeleton className="h-4 w-1/2" />
+        </Card>
+      ))}
+    </div>
+  ) : statistics && (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card className="text-center p-6">
+          <div className="text-3xl font-bold text-accent mb-2">{statistics.totalCount?.toLocaleString()}</div>
+          <p className="text-muted-foreground">Total de Objetos</p>
+        </Card>
+        
+        <Card className="text-center p-6">
+          <div className="text-3xl font-bold text-accent mb-2">
+            {statistics.massStats?.totalMass ? Math.round(statistics.massStats.totalMass).toLocaleString() : 'N/A'}
+          </div>
+          <p className="text-muted-foreground">Massa Total (kg)</p>
+        </Card>
+        
+        <Card className="text-center p-6">
+          <div className="text-3xl font-bold text-accent mb-2">
+            {statistics.byType?.find((t: any) => t.type === 'Satellite')?.count.toLocaleString() || '0'}
+          </div>
+          <p className="text-muted-foreground">Satélites</p>
+        </Card>
+        
+        <Card className="text-center p-6">
+          <div className="text-3xl font-bold text-accent mb-2">
+            {statistics.byType?.find((t: any) => t.type === 'Debris')?.count.toLocaleString() || '0'}
+          </div>
+          <p className="text-muted-foreground">Detritos</p>
+        </Card>
+      </div>
+
+      {/* Additional statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <Card className="p-6">
+          <h4 className="font-semibold mb-4 text-lg">Distribuição por País</h4>
+          <div className="space-y-3">
+            {statistics.byCountry?.slice(0, 5).map((country: any) => (
+              <div key={country._id} className="flex justify-between items-center">
+                <span className="text-muted-foreground">{country._id || 'Desconhecido'}</span>
+                <span className="font-medium">{country.count.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h4 className="font-semibold mb-4 text-lg">Distribuição por Tipo de Órbita</h4>
+          <div className="space-y-3">
+            {statistics.orbitDistribution?.map((orbit: any) => (
+              <div key={orbit._id} className="flex justify-between items-center">
+                <span className="text-muted-foreground">
+                  {orbit._id === 0 ? 'LEO (Baixa)' : 
+                   orbit._id === 1 ? 'MEO (Média)' : 
+                   orbit._id === 2 ? 'GEO (Alta)' : 'Desconhecido'}
+                </span>
+                <span className="font-medium">{orbit.count.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6 mb-8">
+        <h4 className="font-semibold mb-4 text-lg">Distribuição por Tamanho</h4>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {statistics.sizeDistribution?.map((size: any, index: number) => (
+            <div key={index} className="text-center">
+              <div className="text-xl font-bold text-accent mb-1">{size.count.toLocaleString()}</div>
+              <div className="text-sm text-muted-foreground">
+                {size._id === 0 ? '< 100kg' : 
+                 size._id === 1 ? '100-500kg' : 
+                 size._id === 2 ? '500-1000kg' : 
+                 size._id === 3 ? '1-5t' : 
+                 size._id === 4 ? '5-10t' : 
+                 '> 10t'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    </>
+  )}
+</div>
+
       {/* Fullscreen styles */}
-      <style jsx>{`
+      <style>{`
         #visualization-container:fullscreen {
           background: #000;
         }
