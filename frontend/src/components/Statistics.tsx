@@ -24,7 +24,7 @@ const Statistics = () => {
     {
       icon: Satellite,
       title: "Total de Objetos Rastreados",
-      value: "34.000+",
+      value: "16.308",
       description: "Objetos maiores que 10cm em órbita",
       color: "text-accent"
     },

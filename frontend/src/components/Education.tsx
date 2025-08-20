@@ -204,7 +204,7 @@ const Education = () => {
                   <p className="text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
                     A Rede de Vigilância Espacial dos EUA (SSN) opera uma rede global de radares terrestres e telescópios ópticos 
                     para rastrear detritos espaciais. Os dados são mantidos no Catálogo de Objetos Espaciais, que contém informações orbitais 
-                    para mais de 34.000 objetos maiores que 10 centímetros.
+                    para mais de 16.308 objetos maiores que 10 centímetros.
                   </p>
                 </CardContent>
                 

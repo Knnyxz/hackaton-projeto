@@ -48,16 +48,17 @@ const Hero = () => {
           
           {/* Subtitle com Glow */}
           <p className="text-lg animate-float md:text-xl lg:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed animate-fade-in animation-delay-300 text-balance">
-            Explore mais de <span className="text-accent font-bold glow-cyan px-3 py-1 rounded-lg bg-accent/10 border border-accent/20">34.000</span> pedaços de lixo espacial 
-            orbitando a Terra a <span className="text-highlight font-bold glow-purple px-3 py-1 rounded-lg bg-highlight/10 border border-highlight/20">28.000+ km/h</span>
+            Explore mais de <span className="text-accent font-bold glow-cyan px-3 py-0.25 rounded-lg bg-accent/10 border border-accent/20">16.308</span> pedaços de lixo espacial 
+            orbitando a Terra a <span className="text-highlight font-bold glow-purple px-3 py-0.5 rounded-lg bg-highlight/10 border border-highlight/20">28.000+ km/h</span>, para tornar visível e acessível o problema do lixo espacial, transformando dados complexos em informação clara para apoiar decisões e conscientizar a sociedade.
           </p>
+          
 
           {/* Stats com Glass Effect Aprimorado */}
           <div className="flex flex-wrap justify-center animate-float gap-4 text-sm md:text-base animate-fade-in animation-delay-600 perspective-1000">
             <div className="card-cosmic hover-glow card-3d-tilt group cursor-pointer flex items-center gap-2 px-3 py-2 w-fit">
               <Satellite className="w-5 h-5 text-accent transition-all duration-300 layer-2" />
               <span className="font-semibold text-foreground group-hover:text-accent transition-colors duration-300 layer-1">
-                34.000+ Objetos Rastreados
+                16.308 Objetos Rastreados
               </span>
             </div>
             <div className="card-cosmic hover-glow card-3d-tilt group cursor-pointer flex items-center gap-2 px-3 py-2 w-fit">

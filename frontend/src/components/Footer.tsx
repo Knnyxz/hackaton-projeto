@@ -20,7 +20,7 @@ const Footer = () => {
   const resources = [
     { name: "NASA ODPO", url: "#", description: "Escritório do Programa de Detritos Orbitais" },
     { name: "ESA Space Debris", url: "#", description: "Agência Espacial Europeia" },
-    { name: "KeepTrack.space", url: "#", description: "API Educacional da NASA" },
+    { name: "KeepTrack.space", url: "https://api.keeptrack.space/v2/sats", description: "API Educacional da NASA" },
     { name: "LeoLabs", url: "#", description: "Rastreamento Comercial" }
   ];
 
@@ -51,24 +51,55 @@ const Footer = () => {
               do lixo espacial ao redor da Terra. Construída para aumentar a conscientização sobre segurança orbital.
             </p>
             <div className="flex gap-4">
-              <div className="group/icon relative">
+              <a 
+                href="https://github.com/Knnyxz/hackaton-projeto" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group/icon relative"
+              >
                 <Github className="w-5 h-5 text-muted-foreground hover:text-accent cursor-pointer transition-all duration-300 group-hover/icon:scale-125" />
-                <div className="absolute inset-0 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacityabsolute w-5 h-5 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacity">
+                <div className="absolute inset-0 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacity">
                   <Github className="w-5 h-5 text-accent" />
                 </div>
-              </div>
-              <div className="group/icon relative">
+              </a>
+              <a 
+                href="https://wannamaker.com.br" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="group/icon relative"
+              >
                 <Globe className="w-5 h-5 text-muted-foreground hover:text-accent cursor-pointer transition-all duration-300 group-hover/icon:scale-125" />
                 <div className="absolute inset-0 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacity">
                   <Globe className="w-5 h-5 text-accent" />
                 </div>
-              </div>
-              <div className="group/icon relative">
+              </a>
+              <a 
+                href="mailto:joaogabrielfo.oficial@gmail.com" 
+                className="group/icon relative"
+              >
                 <Mail className="w-5 h-5 text-muted-foreground hover:text-accent cursor-pointer transition-all duration-300 group-hover/icon:scale-125" />
                 <div className="absolute inset-0 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacity">
                   <Mail className="w-5 h-5 text-accent" />
                 </div>
-              </div>
+              </a>
+              <a 
+                href="mailto:miguelfrancisco1505@gmail.com" 
+                className="group/icon relative"
+              >
+                <Mail className="w-5 h-5 text-muted-foreground hover:text-accent cursor-pointer transition-all duration-300 group-hover/icon:scale-125" />
+                <div className="absolute inset-0 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacity">
+                  <Mail className="w-5 h-5 text-accent" />
+                </div>
+              </a>
+              <a 
+                href="mailto:gabrielsgarbi.aluno@gmail.com" 
+                className="group/icon relative"
+              >
+                <Mail className="w-5 h-5 text-muted-foreground hover:text-accent cursor-pointer transition-all duration-300 group-hover/icon:scale-125" />
+                <div className="absolute inset-0 blur-sm opacity-50 group-hover/icon:opacity-75 transition-opacity">
+                  <Mail className="w-5 h-5 text-accent" />
+                </div>
+              </a>
             </div>
           </div>
 
