@@ -997,19 +997,20 @@ function focusOnDebris(debris, instanceId, geometryType) {
     }
   });
   
-  // Get the actual world position of the debris
+  // Get the actual world position of the debris from the instancedMesh
+  // The instancedMesh already has the current rotation applied
   const matrix = new THREE.Matrix4();
   const instancedMesh = instancedMeshes[geometryType];
   instancedMesh.getMatrixAt(instanceId, matrix);
+  
+  // Apply the instancedMesh's current world transformation
+  const meshWorldMatrix = instancedMesh.matrixWorld.clone();
+  matrix.premultiply(meshWorldMatrix);
   
   const debrisPos = new THREE.Vector3();
   const rotation = new THREE.Quaternion();
   const scale = new THREE.Vector3();
   matrix.decompose(debrisPos, rotation, scale);
-  
-  // Apply Earth's axial tilt transformation
-  const earthTiltMatrix = new THREE.Matrix4().makeRotationZ(EARTH_AXIAL_TILT);
-  debrisPos.applyMatrix4(earthTiltMatrix);
   
   if (currentDebrisModel) {
     scene.remove(currentDebrisModel);
@@ -1028,7 +1029,7 @@ function focusOnDebris(debris, instanceId, geometryType) {
     // Clone the loaded model
     currentDebrisModel = debrisModel.clone();
     
-    // Position the 3D model at the debris location
+    // Position the 3D model at the debris location (already rotated with Earth)
     currentDebrisModel.position.copy(debrisPos);
     
     // Apply random rotation to make it more interesting
@@ -1697,8 +1698,8 @@ function animate() {
     renderer.info.reset();
   }
 
-  // Rotate Earth slowly on its axis (very slow rotation) - only when not loading
-  if (!isLoading) {
+  // Rotate Earth slowly on its axis (very slow rotation) - only when not loading and not focused on debris
+  if (!isLoading && !isZoomedIn) {
     earth.rotation.y += 0.0001;
 
     // Rotate all debris along with Earth
