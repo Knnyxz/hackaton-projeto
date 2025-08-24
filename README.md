@@ -274,8 +274,6 @@ GET /space_debris/companies      # Empresas únicas
 
 <div align="center">
 
-**🚀 [Explorar Demo](http://localhost:8080) • 📊 [Ver API](http://localhost:3000) • 🌍 [Visualização 3D](http://localhost:8080/RenderTerra)**
-
 *Transformando dados complexos em conhecimento acessível*
 
 </div>
