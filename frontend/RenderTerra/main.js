@@ -9,13 +9,13 @@ let isModelLoaded = false;
 let currentDebrisModel = null; // The currently displayed 3D model
 const fbxLoader = new FBXLoader();
 function loadDebrisModel() {
-  console.log('Loading debris 3D model...');
-  
+  console.log('Carregando modelo 3D de detrito...');
+
   fbxLoader.load(
     './resources/models/destroco.fbx',
     (object) => {
-      console.log('Debris model loaded successfully');
-      
+      console.log('Modelo de detrito carregado com sucesso');
+
       // Store the loaded model
       debrisModel = object.clone();
       
@@ -36,14 +36,14 @@ function loadDebrisModel() {
       debrisModel.scale.set(0.001, 0.001, 0.001);
       
       isModelLoaded = true;
-      console.log('3D debris model ready for use');
+      console.log('Modelo 3D de detrito pronto para uso');
     },
     (progress) => {
-      console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+      console.log('Progresso do carregamento:', (progress.loaded / progress.total * 100) + '%');
     },
     (error) => {
-      console.error('Error loading debris model:', error);
-      console.log('Will fallback to basic geometry for zoom views');
+      console.error('Erro ao carregar modelo de detrito:', error);
+      console.log('Será usado geometria básica para visualizações de zoom');
     }
   );
 }
@@ -551,7 +551,7 @@ function createSideModal() {
   `;
   
   const closeBtn = document.createElement('button');
-  closeBtn.innerHTML = '× Close';
+  closeBtn.innerHTML = '× Fechar';
   closeBtn.style.cssText = `
     position: absolute;
     top: 15px;
@@ -610,100 +610,100 @@ function showSideModal(debrisObj) {
   const getObjectType = (type) => {
     switch(type) {
       case 1: return 'Payload';
-      case 2: return 'Rocket Body';
-      case 3: return 'Debris';
-      default: return 'Unknown';
+      case 2: return 'Corpo de foguete';
+      case 3: return 'Detrito';
+      default: return 'Desconhecido';
     }
   };
   
   const getCountryName = (code) => {
     const countryCodes = {
-      'US': 'United States',
-      'RU': 'Russia',
+      'US': 'Estados Unidos',
+      'RU': 'Rússia',
       'CN': 'China',
-      'J': 'Japan',
-      'IN': 'India',
-      'F': 'France',
-      'D': 'Germany',
-      'GB': 'United Kingdom',
-      'I': 'Italy',
-      'CA': 'Canada',
-      'EUME': 'European Union',
-      'ESA': 'European Space Agency'
+      'J': 'Japão',
+      'IN': 'Índia',
+      'F': 'França',
+      'D': 'Alemanha',
+      'GB': 'Reino Unido',
+      'I': 'Itália',
+      'CA': 'Canadá',
+      'EUME': 'União Europeia',
+      'ESA': 'Agência Espacial Europeia'
     };
-    return countryCodes[code] || code || 'Unknown';
+    return countryCodes[code] || code || 'Desconhecido';
   };
 
   const getSizeCategory = (massKg, diameter, length) => {
     const mass = massKg || 0;
     const size = Math.max(diameter || 0, length || 0);
     
-    if (mass > 1000 || size > 5) return 'Large';
-    if (mass > 100 || size > 2) return 'Medium';
-    if (mass > 10 || size > 0.5) return 'Small';
-    return 'Tiny';
+    if (mass > 1000 || size > 5) return 'Grande';
+    if (mass > 100 || size > 2) return 'Médio';
+    if (mass > 10 || size > 0.5) return 'Pequeno';
+    return 'Minúsculo';
   };
 
   const modalBody = document.getElementById('sideModalBody');
   modalBody.innerHTML = `
     <div style="text-align: center; margin-bottom: 25px; padding: 15px; background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(33, 150, 243, 0.2)); border-radius: 12px; border: 1px solid rgba(76, 175, 80, 0.3);">
-      <h2 style="margin: 0; color: #4CAF50; font-size: 20px;">🛰️ ${debrisObj.objectName || 'Unknown Object'}</h2>
+      <h2 style="margin: 0; color: #4CAF50; font-size: 20px;">🛰️ ${debrisObj.objectName || 'Objeto desconhecido'}</h2>
       <div style="margin-top: 8px; font-size: 12px; color: #80CBC4;">${debrisObj.altName || ''}</div>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <h3 style="color: #ff6b6b; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(255, 107, 107, 0.3);">📋 Identification</h3>
+      <h3 style="color: #ff6b6b; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(255, 107, 107, 0.3);">📋 Identificação</h3>
       <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
         <p style="margin: 8px 0;"><span style="color: #ffab40;">NORAD ID:</span> ${noradId}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Object Type:</span> ${getObjectType(debrisObj.type)}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Country:</span> ${getCountryName(debrisObj.countryCode || debrisObj.country)}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Company:</span> ${debrisObj.company || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Status:</span> ${debrisObj.status || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Tipo de objeto:</span> ${getObjectType(debrisObj.type)}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">País:</span> ${getCountryName(debrisObj.countryCode || debrisObj.country)}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Empresa:</span> ${debrisObj.company || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Status:</span> ${debrisObj.status || 'Desconhecido'}</p>
       </div>
     </div>
 
     <div style="margin-bottom: 20px;">
-      <h3 style="color: #4fc3f7; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(79, 195, 247, 0.3);">📦 Physical Characteristics</h3>
+      <h3 style="color: #4fc3f7; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(79, 195, 247, 0.3);">📦 Características físicas</h3>
       <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Mass:</span> ${debrisObj.massKg > 0 ? debrisObj.massKg + ' kg' : 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Dry Mass:</span> ${debrisObj.dryMass > 0 ? debrisObj.dryMass + ' kg' : 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Mass:</span> ${debrisObj.launchMass > 0 ? debrisObj.launchMass + ' kg' : 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Size Category:</span> ${getSizeCategory(debrisObj.massKg, debrisObj.diameter, debrisObj.length)}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Dimensions:</span> ${[debrisObj.diameter, debrisObj.length, debrisObj.span].filter(Boolean).join(' × ') || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Shape:</span> ${debrisObj.shape || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Bus:</span> ${debrisObj.bus || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Massa:</span> ${debrisObj.massKg > 0 ? debrisObj.massKg + ' kg' : 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Massa seca:</span> ${debrisObj.dryMass > 0 ? debrisObj.dryMass + ' kg' : 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Massa de lançamento:</span> ${debrisObj.launchMass > 0 ? debrisObj.launchMass + ' kg' : 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Categoria de tamanho:</span> ${getSizeCategory(debrisObj.massKg, debrisObj.diameter, debrisObj.length)}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Dimensões:</span> ${[debrisObj.diameter, debrisObj.length, debrisObj.span].filter(Boolean).join(' × ') || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Formato:</span> ${debrisObj.shape || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Ônibus:</span> ${debrisObj.bus || 'Desconhecido'}</p>
       </div>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <h3 style="color: #f39c12; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(243, 156, 18, 0.3);">🚀 Launch Information</h3>
+      <h3 style="color: #f39c12; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(243, 156, 18, 0.3);">🚀 Informações de lançamento</h3>
       <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Date:</span> ${debrisObj.launchDate || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Vehicle:</span> ${debrisObj.launchVehicle || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Site:</span> ${debrisObj.launchSite || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Launch Pad:</span> ${debrisObj.launchPad || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Payload:</span> ${debrisObj.payload || 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Data de lançamento:</span> ${debrisObj.launchDate || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Veículo lançador:</span> ${debrisObj.launchVehicle || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Local de lançamento:</span> ${debrisObj.launchSite || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Plataforma de lançamento:</span> ${debrisObj.launchPad || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Payload:</span> ${debrisObj.payload || 'Desconhecido'}</p>
       </div>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <h3 style="color: #f9ca24; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(249, 202, 36, 0.3);">🌍 Orbital Data</h3>
+      <h3 style="color: #f9ca24; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(249, 202, 36, 0.3);">🌍 Dados orbitais</h3>
       <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px; font-size: 14px; line-height: 1.6;">
         <p style="margin: 8px 0;"><span style="color: #ffab40;">Altitude:</span> ~${Math.round(debrisObj.altitude || 0)} km</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">RCS:</span> ${debrisObj.rcs > 0 ? debrisObj.rcs.toFixed(4) + ' m²' : 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Manufacturer:</span> ${debrisObj.manufacturer || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Stabilization Date:</span> ${debrisObj.stableDate || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Visual Magnitude:</span> ${debrisObj.vmag || 'Unknown'}</p>
-        <p style="margin: 8px 0;"><span style="color: #ffab40;">Last Updated:</span> ${debrisObj.lastUpdated ? new Date(debrisObj.lastUpdated).toLocaleDateString() : 'Unknown'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">RCS:</span> ${debrisObj.rcs > 0 ? debrisObj.rcs.toFixed(4) + ' m²' : 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Fabricante:</span> ${debrisObj.manufacturer || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Data de estabilização:</span> ${debrisObj.stableDate || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Magnitude visual:</span> ${debrisObj.vmag || 'Desconhecido'}</p>
+        <p style="margin: 8px 0;"><span style="color: #ffab40;">Última atualização:</span> ${debrisObj.lastUpdated ? new Date(debrisObj.lastUpdated).toLocaleDateString() : 'Desconhecido'}</p>
       </div>
     </div>
     
     <div style="margin-bottom: 20px;">
-      <h3 style="color: #e91e63; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(233, 30, 99, 0.3);">📡 TLE Data</h3>
+      <h3 style="color: #e91e63; margin-bottom: 12px; font-size: 16px; padding-bottom: 5px; border-bottom: 2px solid rgba(233, 30, 99, 0.3);">📡 Dados TLE</h3>
       <div style="background: rgba(255, 255, 255, 0.05); padding: 12px; border-radius: 8px;">
         <pre style="font-family: 'Courier New', monospace; font-size: 11px; line-height: 1.4; margin: 0; color: #81C784; white-space: pre-wrap; word-break: break-all;">
-${debrisObj.tle1 || 'TLE Line 1 not available'}
-${debrisObj.tle2 || 'TLE Line 2 not available'}</pre>
+${debrisObj.tle1 || 'Linha TLE 1 não disponível'}
+${debrisObj.tle2 || 'Linha TLE 2 não disponível'}</pre>
       </div>
     </div>
   `;
@@ -731,9 +731,10 @@ function updateFilterUI() {
   
   // Update title and placeholder
   const mode = filteringSystem.currentMode;
-  filterTitle.textContent = `Filter by ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-  searchFilter.placeholder = `Search ${mode}s...`;
-  
+  const showMode = mode === 'country' ? 'país' : 'empresa';
+  filterTitle.textContent = `Filtrar por ${showMode.charAt(0).toUpperCase() + showMode.slice(1)}`;
+  searchFilter.placeholder = `Buscar ${showMode}...`;
+
   // Get filtered list based on search term
   const filteredItems = Array.from(filteringSystem.allFilters.entries())
     .filter(([name]) => 

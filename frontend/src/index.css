@@ -53,8 +53,8 @@
     --radius: 0.75rem;
 
     /* Enhanced Space-specific gradients */
-    --gradient-space: linear-gradient(135deg, hsl(220 65% 2%) 0%, hsl(270 60% 6%) 30%, hsl(220 65% 4%) 70%, hsl(180 30% 8%) 100%);
-    --gradient-nebula: linear-gradient(45deg, hsl(270 60% 12%) 0%, hsl(220 70% 18%) 30%, hsl(180 100% 15%) 70%, hsl(320 80% 20%) 100%);
+    --gradient-space: linear-gradient(135deg, hsl(220 65% 16%) 0%, hsl(270 60% 20%) 30%, hsl(220 65% 18%) 70%, hsl(180 30% 22%) 100%);
+    --gradient-nebula: linear-gradient(45deg, hsl(270 60% 40%) 0%, hsl(220 70% 64%) 30%, hsl(180 100% 58%) 70%, hsl(320 80% 68%) 100%);
     --gradient-aurora: linear-gradient(90deg, hsl(180 100% 65%) 0%, hsl(270 100% 70%) 25%, hsl(320 100% 70%) 50%, hsl(35 100% 65%) 75%, hsl(180 100% 65%) 100%);
     --gradient-cosmic: radial-gradient(ellipse at center, hsl(270 100% 70% / 0.1) 0%, hsl(180 100% 65% / 0.05) 50%, transparent 100%);
     --gradient-stellar: conic-gradient(from 0deg, hsl(180 100% 65%) 0deg, hsl(270 100% 70%) 90deg, hsl(320 100% 70%) 180deg, hsl(35 100% 65%) 270deg, hsl(180 100% 65%) 360deg);
