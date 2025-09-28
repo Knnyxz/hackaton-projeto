@@ -731,8 +731,9 @@ function updateFilterUI() {
   
   // Update title and placeholder
   const mode = filteringSystem.currentMode;
-  filterTitle.textContent = `Filtrar por ${mode.charAt(0).toUpperCase() + mode.slice(1)}`;
-  searchFilter.placeholder = `Buscar ${mode}s...`;
+  const showMode = mode === 'country' ? 'país' : 'empresa';
+  filterTitle.textContent = `Filtrar por ${showMode.charAt(0).toUpperCase() + showMode.slice(1)}`;
+  searchFilter.placeholder = `Buscar ${showMode}...`;
 
   // Get filtered list based on search term
   const filteredItems = Array.from(filteringSystem.allFilters.entries())
