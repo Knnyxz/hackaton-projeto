@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Space Debris</title>
+  <title>Lixo Espacial</title>
   <style>
     body { 
       margin: 0; 
@@ -215,61 +215,61 @@
 <body>
   <div id="loading">
     <div class="loading-spinner"></div>
-    Loading space debris data...
+    Carregando dados de lixo espacial...
   </div>
   <div id="controls">
     <div>
-      <button id="colorByCountry" class="active">Color by Country</button>
-      <button id="colorByCompany">Color by Company</button>
+      <button id="colorByCountry" class="active">Cor por país</button>
+      <button id="colorByCompany">Cor por empresa</button>
     </div>
     <div style="margin-top: 10px;">
-      <label>Quality: </label>
+      <label>Qualidade: </label>
       <select id="qualitySelect">
-        <option value="LOW_QUALITY">Low (Best Performance)</option>
-        <option value="MEDIUM_QUALITY" selected>Medium (Balanced)</option>
-        <option value="HIGH_QUALITY">High (Best Quality)</option>
+        <option value="LOW_QUALITY">Baixa (Melhor Desempenho)</option>
+        <option value="MEDIUM_QUALITY" selected>Média</option>
+        <option value="HIGH_QUALITY">Alta (Melhor Qualidade)</option>
       </select>
     </div>
     <div style="margin-top: 10px;">
-      <label>Count: </label>
+      <label>Quantidade: </label>
       <select id="countSelect">
-        <option value="5000">5,000 objects</option>
-        <option value="10000" selected>10,000 objects</option>
-        <option value="15000">15,000 objects</option>
-        <option value="20000">20,000 objects</option>
+        <option value="5000">5,000 objetos</option>
+        <option value="10000" selected>10,000 objetos</option>
+        <option value="15000">15,000 objetos</option>
+        <option value="20000">20,000 objetos</option>
       </select>
     </div>
     
     <div class="filter-section">
-      <h4 id="filterTitle">Filter by Country</h4>
+      <h4 id="filterTitle">Filtro por país</h4>
       <input type="text" id="searchFilter" placeholder="Search countries..." />
       <div class="filter-actions">
-        <button id="selectAllFilter">All</button>
-        <button id="selectNoneFilter">None</button>
-        <button id="resetFilter">Reset</button>
+        <button id="selectAllFilter">Todos</button>
+        <button id="selectNoneFilter">Nenhum</button>
+        <button id="resetFilter">Restaurar</button>
       </div>
       <div id="filterList"></div>
       <div class="filter-stats">
         <div class="stat-item">
-          <span>Selected:</span>
+          <span>Selecionado:</span>
           <span id="selectedCount">0</span>
         </div>
         <div class="stat-item">
-          <span>Visible Objects:</span>
+          <span>Objetos visíveis:</span>
           <span id="visibleObjects">0</span>
         </div>
       </div>
     </div>
     
     <div style="margin-top: 15px; font-size: 11px; color: #aaa;">
-      <div>📦 Size represents object dimensions</div>
-      <div>🖱️ Click objects for details</div>
-      <div>🎮 Mouse: Rotate | Wheel: Zoom</div>
-      <div>⌨️ ESC or R: Reset view</div>
+      <div>📦 Tamanho representa a dimensão do objeto</div>
+      <div>🖱️ Clique no objeto para mais detalhes</div>
+      <div>🎮 Mouse: Rotacionar | Roda: Zoom</div>
+      <div>⌨️ ESC ou R: Restaurar visualização</div>
     </div>
   </div>
   <div id="info">
-    <div>Total Objects: <span id="debrisCount">0</span></div>
+    <div>Objetos totais: <span id="debrisCount">0</span></div>
     <div>FPS: <span id="fps">--</span></div>
   </div>
   <script type="module" src="./main.js"></script>

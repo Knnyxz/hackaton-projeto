@@ -121,7 +121,7 @@ const SpaceDebrisCharts = () => {
     'hsl(var(--accent))',
     'hsl(var(--highlight))',
     'hsl(var(--destructive))',
-    'hsl(var(--primary))',
+    '#6f00ff',
     'hsl(var(--secondary))',
     '#8884d8',
     '#82ca9d',
@@ -358,7 +358,7 @@ const SpaceDebrisCharts = () => {
           </Card>
           <Card className="glass-effect-enhanced border-gradient hover:glow-purple transition-all duration-500 group text-center">
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-primary mb-1">{data.filter(obj => obj.massKg > 0).length}</div>
+              <div className="text-2xl font-bold text-indigo-600 mb-1">{data.filter(obj => obj.massKg > 0).length}</div>
               <div className="text-sm text-muted-foreground">Com Dados de Massa</div>
             </CardContent>
           </Card>

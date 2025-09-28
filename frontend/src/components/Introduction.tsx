@@ -149,9 +149,9 @@ const Introduction = () => {
               </div>
               <div className="space-y-8">
                 <div className="flex items-start gap-5 group hover:translate-x-1 hover-glow transition-all duration-300 p-4 rounded-lg hover:bg-primary/5">
-                  <div className="w-4 h-4 bg-primary rounded-full mt-2 group-hover:scale-150 transition-all duration-300" style={{boxShadow: 'var(--glow-purple)'}} />
+                  <div className="w-4 h-4 bg-sky-400 rounded-full mt-2 group-hover:scale-150 transition-all duration-300" style={{boxShadow: 'var(--glow-purple)'}} />
                   <p className="text-muted-foreground group-hover:text-foreground transition-colors duration-300 leading-relaxed">
-                    <strong className="text-primary font-bold">Impacto Econômico:</strong> O lixo espacial ameaça 
+                    <strong className="text-sky-400 font-bold">Impacto Econômico:</strong> O lixo espacial ameaça
                     mais de $300 bilhões em satélites e infraestrutura espacial atualmente em órbita.
                   </p>
                 </div>
